@@ -79,18 +79,25 @@ const AdminDashboard: React.FC = () => {
     supabase
       .from('api_configs')
       .select('*')
+      .order('updated_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
       .then(({ data, error }) => {
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
+          const config = data[0];
           setApiConfig({
-            openaiKey: data.openai_key || '',
-            geminiKey: data.gemini_key || '',
-            claudeKey: data.claude_key || '',
-            rateLimit: data.rate_limit,
-            maxTokens: data.max_tokens,
-            temperature: data.temperature
+            openaiKey: config.openai_key || '',
+            geminiKey: config.gemini_key || '',
+            claudeKey: config.claude_key || '',
+            rateLimit: config.rate_limit,
+            maxTokens: config.max_tokens,
+            temperature: config.temperature
           });
+          setOpenRouterConfig({
+            apiKey: config.openrouter_key || '',
+            selectedModel: config.selected_model || 'openrouter/sonoma-dusk-alpha'
+          });
+        } else {
+          console.log('No API config found, using defaults');
         }
       })
       .catch(error => console.error('Error loading API config:', error));
@@ -469,15 +476,20 @@ const AdminDashboard: React.FC = () => {
 
   // Save API config to Supabase
   const saveApiConfig = async () => {
+    if (!openRouterConfig.apiKey.trim()) {
+      alert('Please enter an OpenRouter API key!');
+      return;
+    }
+
     try {
       // First, try to update existing config
       const { data: existingConfig } = await supabase
         .from('api_configs')
         .select('id')
-        .limit(1)
-        .maybeSingle();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      if (existingConfig) {
+      if (existingConfig && existingConfig.length > 0) {
         // Update existing config
         const { error } = await supabase
           .from('api_configs')
@@ -488,7 +500,7 @@ const AdminDashboard: React.FC = () => {
             max_tokens: apiConfig.maxTokens,
             temperature: apiConfig.temperature
           })
-          .eq('id', existingConfig.id);
+          .eq('id', existingConfig[0].id);
 
         if (error) {
           throw error;
@@ -514,12 +526,16 @@ const AdminDashboard: React.FC = () => {
       if (openRouterConfig.apiKey) {
         const { aiService } = await import('../services/aiService');
         aiService.updateApiKey(openRouterConfig.apiKey);
+        aiService.updateSelectedModel(openRouterConfig.selectedModel);
       }
 
       alert('API configuration saved successfully to Supabase!');
+      
+      // Reload the config to verify it was saved
+      loadApiConfig();
     } catch (error) {
       console.error('Error saving API config:', error);
-      alert('Error saving API configuration to Supabase!');
+      alert(`Error saving API configuration: ${error}`);
     }
   };
 
@@ -1115,14 +1131,20 @@ const AdminDashboard: React.FC = () => {
               {openRouterConfig.apiKey ? (
                 <>
                   <CheckCircle className="h-4 w-4 mr-1" />
-                  Active
+                  Configured
                 </>
               ) : (
                 <>
                   <XCircle className="h-4 w-4 mr-1" />
-                  Not Configured
+                  Missing API Key
                 </>
               )}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">API Key Length</span>
+            <span className="text-sm text-gray-500">
+              {openRouterConfig.apiKey ? `${openRouterConfig.apiKey.length} characters` : 'Not set'}
             </span>
           </div>
           <div className="flex items-center justify-between">

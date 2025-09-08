@@ -20,20 +20,26 @@ class AIService {
       const { data, error } = await supabase
         .from('api_configs')
         .select('*')
-        .limit(1)
-        .maybeSingle();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      if (!error && data) {
-        this.apiKey = data.openrouter_key || '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';
-        this.selectedModel = data.selected_model || 'openrouter/sonoma-dusk-alpha';
+      if (!error && data && data.length > 0) {
+        const config = data[0];
+        this.apiKey = config.openrouter_key || '';
+        this.selectedModel = config.selected_model || 'openrouter/sonoma-dusk-alpha';
+        console.log('Loaded API config from Supabase:', { 
+          hasApiKey: !!this.apiKey, 
+          model: this.selectedModel 
+        });
       } else {
-        // Fallback to default API key
-        this.apiKey = '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';
+        console.log('No API config found in Supabase, using fallback');
+        // Use fallback API key if no config in database
+        this.apiKey = '';
         this.selectedModel = 'openrouter/sonoma-dusk-alpha';
       }
     } catch (error) {
       console.error('Error loading API config from Supabase:', error);
-      this.apiKey = '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';
+      this.apiKey = '';
       this.selectedModel = 'openrouter/sonoma-dusk-alpha';
     }
   }
@@ -73,6 +79,15 @@ class AIService {
     // Reload API config before each request to ensure we have the latest settings
     await this.loadApiConfig();
     
+    // Check if API key is available
+    if (!this.apiKey) {
+      console.error('No OpenRouter API key configured');
+      return {
+        message: "🔑 API कॉन्फ़िगरेशन की समस्या है। कृपया एडमिन से संपर्क करें। 🛠️",
+        error: 'No API key configured'
+      };
+    }
+    
     try {
       const systemPrompt = `You are VaaniAI, a helpful AI assistant that responds in Hindi (Devanagari script). You are designed to help users with various questions and tasks in Hindi language.
 
@@ -96,6 +111,13 @@ Examples:
       const apiConfig = await this.getApiConfig();
       const maxTokens = apiConfig?.max_tokens || 500;
       const temperature = apiConfig?.temperature || 0.7;
+
+      console.log('Making API request with:', {
+        model: this.selectedModel,
+        hasApiKey: !!this.apiKey,
+        maxTokens,
+        temperature
+      });
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
@@ -126,6 +148,8 @@ Examples:
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API request failed:', response.status, errorText);
         throw new Error(`API request failed: ${response.status}`);
       }
 
@@ -143,13 +167,13 @@ Examples:
       
       // Fallback responses for different scenarios
       const fallbackResponses = isGuest ? [
-        "🙏 क्षमा करें, अभी AI सेवा में कुछ समस्या है। कृपया बाद में पुनः प्रयास करें। 🔄",
-        "⚠️ तकनीकी समस्या के कारण मैं अभी उत्तर नहीं दे सकता। जल्द ही ठीक हो जाएगा! 🛠️",
-        "🤖 AI सेवा अस्थायी रूप से अनुपलब्ध है। कृपया थोड़ी देर बाद कोशिश करें। ⏰"
+        "🙏 क्षमा करें, AI सेवा में समस्या है। एडमिन पैनल में API कॉन्फ़िगरेशन चेक करें। 🔧",
+        "⚠️ OpenRouter API key सेट नहीं है। कृपया एडमिन से संपर्क करें। 🔑",
+        "🤖 API कनेक्शन की समस्या है। कृपया बाद में पुनः प्रयास करें। 🔄"
       ] : [
-        "🙏 क्षमा करें, अभी AI सेवा में कुछ समस्या है। कृपया बाद में पुनः प्रयास करें। 🔄",
-        "⚠️ तकनीकी समस्या के कारण मैं अभी उत्तर नहीं दे सकता। जल्द ही ठीक हो जाएगा! 🛠️",
-        "🤖 AI सेवा अस्थायी रूप से अनुपलब्ध है। कृपया थोड़ी देर बाद कोशिश करें। ⏰"
+        "🙏 क्षमा करें, AI सेवा में समस्या है। एडमिन पैनल में API कॉन्फ़िगरेशन चेक करें। 🔧",
+        "⚠️ OpenRouter API key सेट नहीं है। कृपया एडमिन से संपर्क करें। 🔑",
+        "🤖 API कनेक्शन की समस्या है। कृपया बाद में पुनः प्रयास करें. 🔄"
       ];
 
       return {

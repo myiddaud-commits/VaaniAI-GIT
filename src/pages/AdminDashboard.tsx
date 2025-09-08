@@ -311,7 +311,7 @@ const AdminDashboard: React.FC = () => {
         user.id === userId 
           ? { ...user, plan, messagesLimit: limits[plan] }
           : user
-      });
+      ));
       
       loadLiveData(); // Refresh stats
     } catch (error) {
@@ -853,7 +853,7 @@ const AdminDashboard: React.FC = () => {
         <div className="flex items-center space-x-3">
           <button
             onClick={() => {
-              const dataStr = JSON.stringify(messages, null, 2);
+              const dataStr = JSON.stringify(allMessages, null, 2);
               const dataBlob = new Blob([dataStr], { type: 'application/json' });
               const url = URL.createObjectURL(dataBlob);
               const link = document.createElement('a');

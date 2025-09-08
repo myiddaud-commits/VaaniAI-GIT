@@ -18,7 +18,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   
   const {
-    register,
+    register: formRegister,
     handleSubmit,
     formState: { errors }
   } = useForm<LoginForm>();
@@ -108,7 +108,7 @@ const LoginPage: React.FC = () => {
               </label>
               <div className="mt-1">
                 <input
-                  {...register('email', {
+                  {...formRegister('email', {
                     required: 'ईमेल आवश्यक है',
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -131,7 +131,7 @@ const LoginPage: React.FC = () => {
               </label>
               <div className="mt-1 relative">
                 <input
-                  {...register('password', {
+                  {...formRegister('password', {
                     required: 'पासवर्ड आवश्यक है'
                   })}
                   type={showPassword ? 'text' : 'password'}

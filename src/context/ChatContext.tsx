@@ -23,11 +23,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const { user, incrementMessageCount } = useAuth();
+  const { user, isGuest, incrementMessageCount } = useAuth();
 
   // Load user's chat sessions
   const loadSessions = async () => {
-    if (!user) return;
+    if (!user || isGuest) return;
 
     try {
       const { data, error } = await supabase
@@ -94,7 +94,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   // Create new chat session
   const createNewSession = async () => {
-    if (!user) return;
+    if (!user || isGuest) return;
 
     try {
       const { data, error } = await supabase
@@ -183,7 +183,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   // Send message
   const sendMessage = async (text: string): Promise<void> => {
-    if (!user || !currentSessionId) {
+    if (isGuest || !user || !currentSessionId) {
       return;
     }
 

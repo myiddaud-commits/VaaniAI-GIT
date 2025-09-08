@@ -9,9 +9,10 @@ const ChatPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [guestMessages, setGuestMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { user } = useAuth();
+  const { user, isGuest, guestMessagesUsed, guestMessageLimit, enableGuestMode } = useAuth();
   const { 
     messages, 
     isTyping, 
@@ -26,12 +27,24 @@ const ChatPage: React.FC = () => {
     updateSessionTitle 
   } = useChat();
 
-  // Redirect to login if not authenticated
+  // Load guest messages from localStorage
   useEffect(() => {
-    if (!user) {
-      window.location.href = '/login';
+    if (isGuest) {
+      const savedGuestMessages = localStorage.getItem('vaaniai-guest-chat');
+      if (savedGuestMessages) {
+        try {
+          setGuestMessages(JSON.parse(savedGuestMessages));
+        } catch (error) {
+          console.error('Error loading guest messages:', error);
+        }
+      }
     }
-  }, [user]);
+  }, [isGuest]);
+
+  // Save guest messages to localStorage
+  const saveGuestMessages = (messages: Message[]) => {
+    localStorage.setItem('vaaniai-guest-chat', JSON.stringify(messages));
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,18 +78,76 @@ const ChatPage: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
-    if (!user) {
-      window.location.href = '/login';
-      return;
-    }
 
     const message = inputMessage.trim();
     setInputMessage('');
-    await sendMessage(message);
+    
+    if (isGuest) {
+      await handleGuestMessage(message);
+    } else if (user) {
+      await sendMessage(message);
+    }
     
     // Close sidebar on mobile after sending message
     if (window.innerWidth < 768) {
       setIsSidebarOpen(false);
+    }
+  };
+
+  const handleGuestMessage = async (message: string) => {
+    // Add user message immediately
+    const userMessage: Message = {
+      id: `guest-${Date.now()}`,
+      text: message,
+      sender: 'user',
+      timestamp: new Date().toISOString(),
+    };
+
+    const newMessages = [...guestMessages, userMessage];
+    setGuestMessages(newMessages);
+    saveGuestMessages(newMessages);
+
+    // Check guest message limit
+    const { incrementMessageCount } = useAuth();
+    if (!await incrementMessageCount()) {
+      const limitMessage: Message = {
+        id: `guest-limit-${Date.now()}`,
+        text: "😔 आपकी मुफ़्त संदेश सीमा समाप्त हो गई है। अधिक संदेश भेजने के लिए कृपया रजिस्टर करें। 📝",
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+      };
+      const limitMessages = [...newMessages, limitMessage];
+      setGuestMessages(limitMessages);
+      saveGuestMessages(limitMessages);
+      return;
+    }
+
+    // Get AI response
+    try {
+      const { aiService } = await import('../services/aiService');
+      const aiResponse = await aiService.generateResponse(message, true);
+      
+      const botMessage: Message = {
+        id: `guest-bot-${Date.now()}`,
+        text: aiResponse.message,
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+      };
+
+      const finalMessages = [...newMessages, botMessage];
+      setGuestMessages(finalMessages);
+      saveGuestMessages(finalMessages);
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+      const errorMessage: Message = {
+        id: `guest-error-${Date.now()}`,
+        text: "🙏 क्षमा करें, अभी मैं उत्तर नहीं दे सकता। कृपया पुनः प्रयास करें। 🔄",
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+      };
+      const errorMessages = [...newMessages, errorMessage];
+      setGuestMessages(errorMessages);
+      saveGuestMessages(errorMessages);
     }
   };
 
@@ -105,25 +176,55 @@ const ChatPage: React.FC = () => {
     });
   };
 
-  // Show loading or redirect if no user
-  if (!user) {
+  // Show guest welcome if no user and not in guest mode
+  if (!user && !isGuest) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            चैट एक्सेस करने के लिए लॉगिन करें
+          <div className="w-20 h-20 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <MessageCircle className="h-10 w-10 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            VaaniAI में आपका स्वागत है!
           </h2>
-          <a href="/login" className="text-whatsapp-primary hover:text-whatsapp-dark">
-            लॉगिन करें
-          </a>
+          <p className="text-lg text-gray-600 mb-8 max-w-md mx-auto">
+            हिंदी में AI चैटबॉट का अनुभव करें। आप बिना रजिस्ट्रेशन के भी शुरुआत कर सकते हैं!
+          </p>
+          <div className="space-y-4">
+            <button
+              onClick={enableGuestMode}
+              className="w-full max-w-sm mx-auto block bg-whatsapp-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-whatsapp-dark transition-colors shadow-lg"
+            >
+              🚀 मुफ़्त में शुरू करें (20 संदेश)
+            </button>
+            <div className="flex space-x-4 justify-center">
+              <a
+                href="/login"
+                className="text-whatsapp-primary hover:text-whatsapp-dark font-medium"
+              >
+                लॉगिन करें
+              </a>
+              <span className="text-gray-400">|</span>
+              <a
+                href="/register"
+                className="text-whatsapp-primary hover:text-whatsapp-dark font-medium"
+              >
+                रजिस्टर करें
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const usagePercentage = (user.messagesUsed / user.messagesLimit) * 100;
+  // Calculate usage for both user and guest
+  const messagesUsed = isGuest ? guestMessagesUsed : (user?.messagesUsed || 0);
+  const messagesLimit = isGuest ? guestMessageLimit : (user?.messagesLimit || 100);
+  const usagePercentage = (messagesUsed / messagesLimit) * 100;
   const isNearLimit = usagePercentage >= 80;
-  const isAtLimit = user.messagesUsed >= user.messagesLimit;
+  const isAtLimit = messagesUsed >= messagesLimit;
+  const currentMessages = isGuest ? guestMessages : messages;
 
   return (
     <div className="flex h-screen bg-gray-50 relative overflow-hidden">
@@ -326,10 +427,10 @@ const ChatPage: React.FC = () => {
         <div className="bg-white border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-gray-600 font-medium">
-              संदेश: {user.messagesUsed}/{user.messagesLimit}
+              संदेश: {messagesUsed}/{messagesLimit}
             </span>
             <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600 capitalize">
-              {user.plan} प्लान
+              {isGuest ? 'गेस्ट' : user?.plan} प्लान
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -348,21 +449,30 @@ const ChatPage: React.FC = () => {
             <div className={`mt-2 flex items-center text-sm ${isAtLimit ? 'text-red-600' : 'text-yellow-600'}`}>
               <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="flex-1">
-                {isAtLimit ? 'मासिक सीमा समाप्त हो गई है।' : 'आपकी मासिक सीमा समाप्त होने वाली है।'}
+                {isAtLimit ? (isGuest ? 'मुफ़्त सीमा समाप्त हो गई है।' : 'मासिक सीमा समाप्त हो गई है।') : (isGuest ? 'आपकी मुफ़्त सीमा समाप्त होने वाली है।' : 'आपकी मासिक सीमा समाप्त होने वाली है।')}
               </span>
-              <Link 
-                to="/plans" 
-                className="ml-2 text-whatsapp-primary hover:text-whatsapp-dark font-medium underline"
-              >
-                अपग्रेड करें
-              </Link>
+              {isGuest ? (
+                <Link 
+                  to="/register" 
+                  className="ml-2 text-whatsapp-primary hover:text-whatsapp-dark font-medium underline"
+                >
+                  रजिस्टर करें
+                </Link>
+              ) : (
+                <Link 
+                  to="/plans" 
+                  className="ml-2 text-whatsapp-primary hover:text-whatsapp-dark font-medium underline"
+                >
+                  अपग्रेड करें
+                </Link>
+              )}
             </div>
           )}
         </div>
 
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 pb-safe">
-          {messages.length === 0 && (
+          {currentMessages.length === 0 && (
             <div className="text-center text-gray-500 mt-8 px-4">
               <div className="w-20 h-20 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
                 <Bot className="h-10 w-10 text-white" />
@@ -371,12 +481,25 @@ const ChatPage: React.FC = () => {
                 VaaniAI में आपका स्वागत है!
               </h3>
               <p className="text-gray-600 max-w-md mx-auto leading-relaxed">
-                मुझसे हिंदी में कुछ भी पूछें। मैं आपकी सहायता करने के लिए यहाँ हूँ।
+                {isGuest 
+                  ? `मुझसे हिंदी में कुछ भी पूछें। आपके पास ${guestMessageLimit - guestMessagesUsed} मुफ़्त संदेश बचे हैं।`
+                  : 'मुझसे हिंदी में कुछ भी पूछें। मैं आपकी सहायता करने के लिए यहाँ हूँ।'
+                }
               </p>
+              {isGuest && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    💡 अधिक संदेश और बेहतर सुविधाओं के लिए{' '}
+                    <Link to="/register" className="font-medium underline hover:text-blue-900">
+                      रजिस्टर करें
+                    </Link>
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
-          {messages.map((message) => (
+          {currentMessages.map((message) => (
             <div
               key={message.id}
               className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
@@ -451,7 +574,10 @@ const ChatPage: React.FC = () => {
           </form>
           {isAtLimit && (
             <p className="text-xs text-red-600 mt-2 text-center">
-              संदेश भेजने के लिए कृपया अपना प्लान अपग्रेड करें
+              {isGuest 
+                ? 'अधिक संदेश भेजने के लिए कृपया रजिस्टर करें'
+                : 'संदेश भेजने के लिए कृपया अपना प्लान अपग्रेड करें'
+              }
             </p>
           )}
         </div>

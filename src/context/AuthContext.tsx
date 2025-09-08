@@ -21,6 +21,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [guestMessagesUsed, setGuestMessagesUsed] = useState(0);
+  const [isGuest, setIsGuest] = useState(false);
+
+  // Guest message limit
+  const GUEST_MESSAGE_LIMIT = 20;
 
   useEffect(() => {
     // Get initial session
@@ -29,6 +34,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (session?.user) {
         fetchProfile(session.user.id);
       } else {
+        // Check if user is in guest mode
+        const guestMode = localStorage.getItem('vaaniai-guest-mode');
+        const guestMessages = parseInt(localStorage.getItem('vaaniai-guest-messages') || '0');
+        
+        if (guestMode === 'true') {
+          setIsGuest(true);
+          setGuestMessagesUsed(guestMessages);
+        }
         setLoading(false);
       }
     });
@@ -40,9 +53,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setSession(session);
       
       if (session?.user) {
+        setIsGuest(false);
+        localStorage.removeItem('vaaniai-guest-mode');
+        localStorage.removeItem('vaaniai-guest-messages');
         await fetchProfile(session.user.id);
       } else {
         setUser(null);
+        // Maintain guest state if it was active
+        const guestMode = localStorage.getItem('vaaniai-guest-mode');
+        if (guestMode === 'true') {
+          setIsGuest(true);
+          const guestMessages = parseInt(localStorage.getItem('vaaniai-guest-messages') || '0');
+          setGuestMessagesUsed(guestMessages);
+        }
         setLoading(false);
       }
     });
@@ -201,7 +224,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const enableGuestMode = () => {
+    setIsGuest(true);
+    setGuestMessagesUsed(0);
+    localStorage.setItem('vaaniai-guest-mode', 'true');
+    localStorage.setItem('vaaniai-guest-messages', '0');
+  };
+
+  const incrementGuestMessageCount = (): boolean => {
+    if (!isGuest) return false;
+    
+    if (guestMessagesUsed >= GUEST_MESSAGE_LIMIT) {
+      return false;
+    }
+
+    const newCount = guestMessagesUsed + 1;
+    setGuestMessagesUsed(newCount);
+    localStorage.setItem('vaaniai-guest-messages', newCount.toString());
+    return true;
+  };
+
   const incrementMessageCount = async (): Promise<boolean> => {
+    // Handle guest users
+    if (isGuest) {
+      return incrementGuestMessageCount();
+    }
+
     if (!user) return false;
     
     if (user.messagesUsed >= user.messagesLimit) {
@@ -237,11 +285,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const value: AuthContextType = {
     user,
+    isGuest,
+    guestMessagesUsed,
+    guestMessageLimit: GUEST_MESSAGE_LIMIT,
     login,
     register,
     logout,
     updatePlan,
     incrementMessageCount,
+    enableGuestMode,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

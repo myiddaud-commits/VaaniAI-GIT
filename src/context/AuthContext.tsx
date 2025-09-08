@@ -20,7 +20,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Get initial session
@@ -28,6 +28,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setSession(session);
       if (session?.user) {
         fetchProfile(session.user.id);
+      } else {
+        setLoading(false);
       }
     });
 
@@ -41,6 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await fetchProfile(session.user.id);
       } else {
         setUser(null);
+        setLoading(false);
       }
     });
 
@@ -49,6 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchProfile = async (userId: string) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -57,7 +61,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('Error fetching profile:', error);
-      } else if (data) {
+        throw error;
+      }
+
+      if (data) {
         setUser({
           id: data.id,
           name: data.name,
@@ -70,56 +77,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('Attempting login with Supabase for:', email);
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Supabase login error:', error.message);
-        
-        // If Supabase fails, try localStorage fallback for demo purposes
-        console.log('Trying localStorage fallback...');
-        const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-        const user = users.find((u: any) => u.email === email && u.password === password);
-        
-        if (user) {
-          console.log('Found user in localStorage, setting session...');
-          setUser({
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            plan: user.plan,
-            messagesUsed: user.messagesUsed,
-            messagesLimit: user.messagesLimit,
-            createdAt: user.createdAt
-          });
-          localStorage.setItem('vaaniai-user', JSON.stringify(user));
-          return true;
-        }
-        
+        console.error('Login error:', error.message);
         return false;
       }
 
-      console.log('Supabase login successful');
       return !!data.user;
     } catch (error) {
       console.error('Login error:', error);
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     try {
-      console.log('Attempting registration for:', email);
+      setLoading(true);
       
-      // First try Supabase registration
+      // Sign up with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -127,104 +116,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           data: {
             name,
           },
-          emailRedirectTo: undefined, // Disable email confirmation
         },
       });
 
       if (error) {
-        console.error('Supabase registration error:', error);
-        
-        // If Supabase fails, create user in localStorage as fallback
-        console.log('Creating user in localStorage as fallback...');
-        const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-        
-        // Check if user already exists
-        const existingUser = users.find((u: any) => u.email === email);
-        if (existingUser) {
-          console.log('User already exists in localStorage, attempting login...');
-          return await login(email, password);
+        console.error('Registration error:', error);
+        return false;
+      }
+
+      if (data.user) {
+        // Create profile in profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            name,
+            email,
+            plan: 'free',
+            messages_used: 0,
+            messages_limit: 100
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          return false;
         }
-        
-        // Create new user in localStorage
-        const newUser = {
-          id: Date.now().toString(),
-          name,
-          email,
-          password,
-          plan: 'free' as const,
-          messagesUsed: 0,
-          messagesLimit: 100,
-          createdAt: new Date().toISOString(),
-        };
-        
-        users.push(newUser);
-        localStorage.setItem('vaaniai-users', JSON.stringify(users));
-        
-        // Set current user
-        setUser({
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          plan: newUser.plan,
-          messagesUsed: newUser.messagesUsed,
-          messagesLimit: newUser.messagesLimit,
-          createdAt: newUser.createdAt
-        });
-        localStorage.setItem('vaaniai-user', JSON.stringify(newUser));
-        
-        console.log('User created successfully in localStorage');
+
         return true;
       }
 
-      console.log('Registration response:', data);
-      
-      // If user is immediately available (email confirmation disabled)
-      if (data.user && data.session) {
-        console.log('Registration successful with immediate session');
-        return true;
-      }
-      
-      // If user created but needs confirmation
-      if (data.user && !data.session) {
-        console.log('User created, email confirmation may be required');
-        // Consider registration successful even without immediate session
-        return true;
-      }
-
-      return !!data.user;
+      return false;
     } catch (error) {
-      console.error('Registration catch error:', error);
-      
-      // Fallback to localStorage registration
-      console.log('Fallback to localStorage registration...');
-      const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-      
-      const newUser = {
-        id: Date.now().toString(),
-        name,
-        email,
-        password,
-        plan: 'free' as const,
-        messagesUsed: 0,
-        messagesLimit: 100,
-        createdAt: new Date().toISOString(),
-      };
-      
-      users.push(newUser);
-      localStorage.setItem('vaaniai-users', JSON.stringify(users));
-      
-      setUser({
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        plan: newUser.plan,
-        messagesUsed: newUser.messagesUsed,
-        messagesLimit: newUser.messagesLimit,
-        createdAt: newUser.createdAt
-      });
-      localStorage.setItem('vaaniai-user', JSON.stringify(newUser));
-      
-      return true;
+      console.error('Registration error:', error);
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 

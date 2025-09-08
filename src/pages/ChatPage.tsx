@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 
 const ChatPage: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
-  const [guestMessages, setGuestMessages] = useState(5);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -27,6 +26,13 @@ const ChatPage: React.FC = () => {
     updateSessionTitle 
   } = useChat();
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      window.location.href = '/login';
+    }
+  }, [user]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -34,35 +40,6 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
-
-  useEffect(() => {
-    // Load guest messages from localStorage
-    if (!user) {
-      const today = new Date().toDateString();
-      const savedData = localStorage.getItem('vaaniai-guest-data');
-      
-      if (savedData) {
-        const guestData = JSON.parse(savedData);
-        if (guestData.date === today) {
-          setGuestMessages(guestData.remaining);
-        } else {
-          // New day, reset to 20 messages
-          setGuestMessages(20);
-          localStorage.setItem('vaaniai-guest-data', JSON.stringify({
-            date: today,
-            remaining: 20
-          }));
-        }
-      } else {
-        // First time, set to 20 messages
-        setGuestMessages(20);
-        localStorage.setItem('vaaniai-guest-data', JSON.stringify({
-          date: today,
-          remaining: 20
-        }));
-      }
-    }
-  }, [user]);
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
@@ -88,21 +65,9 @@ const ChatPage: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
-
-    // Check guest message limit
-    if (!user && guestMessages <= 0) {
-      return;
-    }
-
-    // Decrement guest messages if not logged in
     if (!user) {
-      const newGuestMessages = guestMessages - 1;
-      setGuestMessages(newGuestMessages);
-      const today = new Date().toDateString();
-      localStorage.setItem('vaaniai-guest-data', JSON.stringify({
-        date: today,
-        remaining: newGuestMessages
-      }));
+      window.location.href = '/login';
+      return;
     }
 
     const message = inputMessage.trim();
@@ -140,9 +105,25 @@ const ChatPage: React.FC = () => {
     });
   };
 
-  const usagePercentage = user ? (user.messagesUsed / user.messagesLimit) * 100 : ((20 - guestMessages) / 20) * 100;
-  const isNearLimit = user ? usagePercentage >= 80 : guestMessages <= 5;
-  const isAtLimit = user ? user.messagesUsed >= user.messagesLimit : guestMessages <= 0;
+  // Show loading or redirect if no user
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            चैट एक्सेस करने के लिए लॉगिन करें
+          </h2>
+          <a href="/login" className="text-whatsapp-primary hover:text-whatsapp-dark">
+            लॉगिन करें
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const usagePercentage = (user.messagesUsed / user.messagesLimit) * 100;
+  const isNearLimit = usagePercentage >= 80;
+  const isAtLimit = user.messagesUsed >= user.messagesLimit;
 
   return (
     <div className="flex h-screen bg-gray-50 relative overflow-hidden">
@@ -345,14 +326,10 @@ const ChatPage: React.FC = () => {
         <div className="bg-white border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-gray-600 font-medium">
-              {user ? (
-                `संदेश: ${user.messagesUsed}/${user.messagesLimit}`
-              ) : (
-                `गेस्ट मैसेज: ${guestMessages}/20`
-              )}
+              संदेश: {user.messagesUsed}/{user.messagesLimit}
             </span>
             <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600 capitalize">
-              {user ? `${user.plan} प्लान` : 'गेस्ट मोड'}
+              {user.plan} प्लान
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -371,17 +348,13 @@ const ChatPage: React.FC = () => {
             <div className={`mt-2 flex items-center text-sm ${isAtLimit ? 'text-red-600' : 'text-yellow-600'}`}>
               <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="flex-1">
-                {isAtLimit ? (
-                  user ? 'मासिक सीमा समाप्त हो गई है।' : 'गेस्ट मैसेज समाप्त हो गए हैं!'
-                ) : (
-                  user ? 'आपकी मासिक सीमा समाप्त होने वाली है।' : 'आपके गेस्ट मैसेज समाप्त होने वाले हैं!'
-                )}
+                {isAtLimit ? 'मासिक सीमा समाप्त हो गई है।' : 'आपकी मासिक सीमा समाप्त होने वाली है।'}
               </span>
               <Link 
-                to={user ? "/plans" : "/register"} 
+                to="/plans" 
                 className="ml-2 text-whatsapp-primary hover:text-whatsapp-dark font-medium underline"
               >
-                {user ? 'अपग्रेड करें' : 'साइन अप करें'}
+                अपग्रेड करें
               </Link>
             </div>
           )}
@@ -395,13 +368,10 @@ const ChatPage: React.FC = () => {
                 <Bot className="h-10 w-10 text-white" />
               </div>
               <h3 className="text-xl font-semibold mb-3 text-gray-800">
-                {user ? 'VaaniAI में आपका स्वागत है!' : 'VaaniAI में आपका स्वागत है!'}
+                VaaniAI में आपका स्वागत है!
               </h3>
               <p className="text-gray-600 max-w-md mx-auto leading-relaxed">
-                {user 
-                  ? 'मुझसे हिंदी में कुछ भी पूछें। मैं आपकी सहायता करने के लिए यहाँ हूँ।'
-                  : `मुझसे हिंदी में कुछ भी पूछें! आपके पास आज ${guestMessages} मुफ़्त मैसेज हैं।`
-                }
+                मुझसे हिंदी में कुछ भी पूछें। मैं आपकी सहायता करने के लिए यहाँ हूँ।
               </p>
             </div>
           )}
@@ -481,10 +451,7 @@ const ChatPage: React.FC = () => {
           </form>
           {isAtLimit && (
             <p className="text-xs text-red-600 mt-2 text-center">
-              {user 
-                ? 'संदेश भेजने के लिए कृपया अपना प्लान अपग्रेड करें'
-                : 'आज के मैसेज समाप्त! कल फिर कोशिश करें या साइन अप करें'
-              }
+              संदेश भेजने के लिए कृपया अपना प्लान अपग्रेड करें
             </p>
           )}
         </div>

@@ -41,45 +41,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setIsLoading(true);
-    setError('');
-
-    try {
-      // First check if demo user exists in localStorage
-      const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-      let demoUser = users.find((u: any) => u.email === 'demo@example.com');
-      
-      if (!demoUser) {
-        // Create demo user if doesn't exist
-        demoUser = {
-          id: 'demo',
-          name: 'डेमो उपयोगकर्ता',
-          email: 'demo@example.com',
-          password: 'demo123',
-          plan: 'premium' as const,
-          messagesUsed: 0,
-          messagesLimit: 5000,
-          createdAt: new Date().toISOString(),
-        };
-        users.push(demoUser);
-        localStorage.setItem('vaaniai-users', JSON.stringify(users));
-      }
-      
-      // Try to login with demo credentials
-      const success = await login('demo@example.com', 'demo123');
-      if (success) {
-        navigate('/chat');
-      } else {
-        setError('डेमो लॉगिन में समस्या हुई। कृपया पुनः प्रयास करें।');
-      }
-    } catch (err) {
-      setError('डेमो लॉगिन में त्रुटि हुई।');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -184,37 +145,16 @@ const LoginPage: React.FC = () => {
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">या</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <button
-                onClick={handleDemoLogin}
-                disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-whatsapp-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              खाता नहीं है?{' '}
+              <Link
+                to="/register"
+                className="font-medium text-whatsapp-primary hover:text-whatsapp-dark"
               >
-                डेमो अकाउंट से लॉगिन करें
-              </button>
-            </div>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                खाता नहीं है?{' '}
-                <Link
-                  to="/register"
-                  className="font-medium text-whatsapp-primary hover:text-whatsapp-dark"
-                >
-                  पंजीकरण करें
-                </Link>
-              </p>
-            </div>
+                पंजीकरण करें
+              </Link>
+            </p>
           </div>
         </div>
       </div>

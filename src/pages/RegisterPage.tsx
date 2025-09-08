@@ -39,19 +39,14 @@ const RegisterPage: React.FC = () => {
     setError('');
 
     try {
-      console.log('Starting registration process...');
       const success = await registerUser(data.name, data.email, data.password);
-      console.log('Registration result:', success);
       
       if (success) {
-        console.log('Registration successful, navigating to chat...');
         navigate('/chat');
       } else {
-        console.log('Registration failed');
-        setError('पंजीकरण में समस्या हुई। कृपया अलग ईमेल का उपयोग करें या लॉगिन करने का प्रयास करें।');
+        setError('पंजीकरण में समस्या हुई। कृपया अलग ईमेल का उपयोग करें।');
       }
     } catch (err) {
-      console.error('Registration catch error:', err);
       setError('पंजीकरण में त्रुटि हुई। कृपया पुनः प्रयास करें।');
     } finally {
       setIsLoading(false);
@@ -209,27 +204,16 @@ const RegisterPage: React.FC = () => {
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">या</span>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                पहले से खाता है?{' '}
-                <Link
-                  to="/login"
-                  className="font-medium text-whatsapp-primary hover:text-whatsapp-dark"
-                >
-                  लॉगिन करें
-                </Link>
-              </p>
-            </div>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              पहले से खाता है?{' '}
+              <Link
+                to="/login"
+                className="font-medium text-whatsapp-primary hover:text-whatsapp-dark"
+              >
+                लॉगिन करें
+              </Link>
+            </p>
           </div>
         </div>
       </div>

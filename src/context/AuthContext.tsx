@@ -136,7 +136,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.user && !data.session) {
         console.log('User created, email confirmation may be required');
         // Try to sign in immediately (works if email confirmation is disabled)
-        return await login(email, password);
+        const loginSuccess = await login(email, password);
+        // Return true if user was created successfully, even if login fails due to confirmation
+        return true;
       }
 
       return !!data.user;

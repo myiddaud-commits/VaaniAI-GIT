@@ -28,22 +28,15 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      console.log('Attempting login for:', data.email);
       const success = await login(data.email, data.password);
-      console.log('Login result:', success);
-      
       if (success) {
-        console.log('Login successful, navigating to chat');
         navigate('/chat');
       } else {
-        console.log('Login failed');
         setError('लॉगिन में समस्या हुई। कृपया ईमेल और पासवर्ड जांचें।');
       }
     } catch (err) {
-      console.error('Login error:', err);
       setError('लॉगिन में त्रुटि हुई। कृपया पुनः प्रयास करें।');
     } finally {
-      console.log('Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -53,15 +46,10 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      console.log('Attempting demo login');
       const success = await login('demo@example.com', 'demo123');
-      console.log('Demo login result:', success);
-      
       if (success) {
-        console.log('Demo login successful');
         navigate('/chat');
       } else {
-        console.log('Demo login failed, creating demo user');
         // Create demo user if doesn't exist
         const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
         const demoUser = {
@@ -78,19 +66,15 @@ const LoginPage: React.FC = () => {
         localStorage.setItem('vaaniai-users', JSON.stringify(users));
         
         const loginSuccess = await login('demo@example.com', 'demo123');
-        console.log('Second demo login attempt:', loginSuccess);
         if (loginSuccess) {
           navigate('/chat');
         } else {
-          console.log('Demo login still failed');
           setError('डेमो लॉगिन में त्रुटि हुई।');
         }
       }
     } catch (err) {
-      console.error('Demo login error:', err);
       setError('डेमो लॉगिन में त्रुटि हुई।');
     } finally {
-      console.log('Setting demo loading to false');
       setIsLoading(false);
     }
   };

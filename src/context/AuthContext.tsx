@@ -86,7 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (error) {
-        console.error('Login error:', error);
+        console.error('Login error:', error.message);
         return false;
       }
 
@@ -110,7 +110,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (error) {
-        console.error('Registration error:', error);
+        console.error('Registration error:', error.message);
+        // Don't return false for "User already registered" - let Supabase handle it
+        if (error.message.includes('User already registered')) {
+          // Try to sign in instead
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (signInError) {
+            console.error('Auto sign-in failed:', signInError.message);
+            return false;
+          }
+          
+          return !!signInData.user;
+        }
         return false;
       }
 

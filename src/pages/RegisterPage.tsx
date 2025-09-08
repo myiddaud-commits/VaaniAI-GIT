@@ -43,7 +43,7 @@ const RegisterPage: React.FC = () => {
       if (success) {
         navigate('/chat');
       } else {
-        setError('यह ईमेल पहले से पंजीकृत है');
+        setError('पंजीकरण में समस्या हुई। यदि आपका खाता पहले से है, तो लॉगिन करें।');
       }
     } catch (err) {
       setError('पंजीकरण में त्रुटि हुई। कृपया पुनः प्रयास करें।');

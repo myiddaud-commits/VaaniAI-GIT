@@ -102,6 +102,77 @@ export interface Database {
           created_at: string;
         };
       };
+      api_configs: {
+        Row: {
+          id: string;
+          openai_key: string | null;
+          gemini_key: string | null;
+          claude_key: string | null;
+          rate_limit: number;
+          max_tokens: number;
+          temperature: number;
+          updated_at: string;
+        };
+        Insert: {
+          openai_key?: string;
+          gemini_key?: string;
+          claude_key?: string;
+          rate_limit?: number;
+          max_tokens?: number;
+          temperature?: number;
+        };
+        Update: {
+          openai_key?: string;
+          gemini_key?: string;
+          claude_key?: string;
+          rate_limit?: number;
+          max_tokens?: number;
+          temperature?: number;
+        };
+      };
+      admin_users: {
+        Row: {
+          id: string;
+          email: string;
+          role: 'admin' | 'super_admin';
+          created_at: string;
+        };
+      };
+      user_analytics: {
+        Row: {
+          id: string;
+          user_id: string;
+          date: string;
+          messages_sent: number;
+          session_count: number;
+          total_time_spent: number;
+        };
+      };
+      system_analytics: {
+        Row: {
+          id: string;
+          date: string;
+          total_users: number;
+          active_users: number;
+          total_messages: number;
+          api_calls: number;
+          revenue: number;
+          created_at: string;
+        };
+      };
+      api_usage_logs: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          endpoint: string;
+          model_used: string;
+          tokens_used: number;
+          response_time: number;
+          status: 'success' | 'error' | 'timeout';
+          error_message: string | null;
+          created_at: string;
+        };
+      };
     };
   };
 }

@@ -1,77 +1,95 @@
 import React from 'react';
 import { Check, Star, Zap, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Plan } from '../types';
-import { PricingPlan } from '../types/admin';
 
 const PlansPage: React.FC = () => {
   const { user, updatePlan } = useAuth();
 
-  // Load pricing plans from localStorage (set by admin)
+  // Load pricing plans from Supabase
   const loadPricingPlans = (): Plan[] => {
-    const savedPlans = JSON.parse(localStorage.getItem('vaaniai-pricing-plans') || '[]') as PricingPlan[];
+    const [plans, setPlans] = React.useState<Plan[]>([]);
     
-    if (savedPlans.length === 0) {
-      // Fallback to default plans if none configured
-      return [
-        {
-          id: 'free',
-          name: 'मुफ़्त योजना',
-          price: '₹0',
-          messages: '20 संदेश प्रति दिन',
-          features: [
-            'बुनियादी AI चैट',
-            'हिंदी भाषा समर्थन',
-            'मोबाइल और डेस्कटॉप एक्सेस',
-            'चैट इतिहास सेव करें',
-            'बुनियादी सहायता',
-            'रोज़ाना रीसेट'
-          ]
-        },
-        {
-          id: 'premium',
-          name: 'प्रीमियम योजना',
-          price: '₹499/माह',
-          messages: '5,000 संदेश प्रति माह',
-          popular: true,
-          features: [
-            'उन्नत AI चैट',
-            'प्राथमिकता सहायता',
-            'चैट इतिहास सेव करें',
-            'तेज़ प्रतिक्रिया समय',
-            'कस्टम टेम्प्लेट्स',
-            'एक्सपोर्ट चैट'
-          ]
-        },
-        {
-          id: 'enterprise',
-          name: 'एंटरप्राइज योजना',
-          price: 'कस्टम मूल्य',
-          messages: 'असीमित संदेश',
-          features: [
-            'असीमित AI चैट',
-            '24/7 समर्पित सहायता',
-            'कस्टम इंटीग्रेशन',
-            'एडवांस्ड एनालिटिक्स',
-            'टीम मैनेजमेंट',
-            'प्राइवेट क्लाउड',
-            'SLA गारंटी'
-          ]
-        }
-      ];
-    }
+    React.useEffect(() => {
+      const fetchPlans = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('pricing_plans')
+            .select('*')
+            .eq('is_active', true)
+            .order('price', { ascending: true });
 
-    // Convert PricingPlan to Plan format and filter active plans
-    return savedPlans
-      .filter(plan => plan.isActive)
-      .map(plan => ({
-        id: plan.id,
-        name: plan.nameHindi,
-        price: plan.price === 0 ? '₹0' : plan.billingCycle === 'yearly' ? `₹${plan.price}/वर्ष` : `₹${plan.price}/माह`,
-        messages: plan.messagesLimit === 999999 ? 'असीमित संदेश' : `${plan.messagesLimit} संदेश प्रति माह`,
-        features: plan.featuresHindi,
-        popular: plan.isPopular
-      }));
+          if (error) {
+            console.error('Error fetching pricing plans:', error);
+            // Fallback to default plans
+            setPlans([
+              {
+                id: 'free',
+                name: 'मुफ़्त योजना',
+                price: '₹0',
+                messages: '100 संदेश प्रति माह',
+                features: [
+                  'बुनियादी AI चैट',
+                  'हिंदी भाषा समर्थन',
+                  'मोबाइल और डेस्कटॉप एक्सेस',
+                  'चैट इतिहास सेव करें',
+                  'बुनियादी सहायता'
+                ]
+              },
+              {
+                id: 'premium',
+                name: 'प्रीमियम योजना',
+                price: '₹499/माह',
+                messages: '5,000 संदेश प्रति माह',
+                popular: true,
+                features: [
+                  'उन्नत AI चैट',
+                  'प्राथमिकता सहायता',
+                  'चैट इतिहास सेव करें',
+                  'तेज़ प्रतिक्रिया समय',
+                  'कस्टम टेम्प्लेट्स',
+                  'एक्सपोर्ट चैट'
+                ]
+              },
+              {
+                id: 'enterprise',
+                name: 'एंटरप्राइज योजना',
+                price: '₹2000/माह',
+                messages: 'असीमित संदेश',
+                features: [
+                  'असीमित AI चैट',
+                  '24/7 समर्पित सहायता',
+                  'कस्टम इंटीग्रेशन',
+                  'एडवांस्ड एनालिटिक्स',
+                  'टीम मैनेजमेंट',
+                  'प्राइवेट क्लाउड',
+                  'SLA गारंटी'
+                ]
+              }
+            ]);
+            return;
+          }
+
+          const formattedPlans: Plan[] = data.map(plan => ({
+            id: plan.id as 'free' | 'premium' | 'enterprise',
+            name: plan.name_hindi,
+            price: plan.price === 0 ? '₹0' : plan.billing_cycle === 'yearly' ? `₹${plan.price}/वर्ष` : `₹${plan.price}/माह`,
+            messages: plan.messages_limit === 999999 ? 'असीमित संदेश' : `${plan.messages_limit} संदेश प्रति माह`,
+            features: plan.features_hindi,
+            popular: plan.is_popular
+          }));
+
+          setPlans(formattedPlans);
+        } catch (error) {
+          console.error('Error fetching pricing plans:', error);
+        }
+      };
+
+      fetchPlans();
+    }, []);
+
+    return plans;
   };
 
   const plans = loadPricingPlans();

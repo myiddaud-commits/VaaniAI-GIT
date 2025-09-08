@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
 import { Message, ChatContextType, ChatSession } from '../types';
 import { useAuth } from './AuthContext';
 import { aiService } from '../services/aiService';
@@ -24,101 +25,238 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const { user, incrementMessageCount } = useAuth();
 
-  // Load chat sessions and history on component mount
-  useEffect(() => {
-    const savedSessions = localStorage.getItem('vaaniai-chat-sessions');
-    if (savedSessions) {
-      try {
-        const parsedSessions = JSON.parse(savedSessions);
-        setSessions(parsedSessions);
-        
-        // Load the most recent session or create a new one
-        if (parsedSessions.length > 0) {
-          const lastSession = parsedSessions[parsedSessions.length - 1];
-          setCurrentSessionId(lastSession.id);
-          setMessages(lastSession.messages);
-        } else {
-          createNewSession();
-        }
-      } catch (error) {
-        console.error('Error loading chat sessions:', error);
-        createNewSession();
+  // Load user's chat sessions
+  const loadSessions = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading sessions:', error);
+        return;
       }
-    } else {
-      createNewSession();
-    }
-  }, []);
 
-  // Save sessions whenever they change
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem('vaaniai-chat-sessions', JSON.stringify(sessions));
-    }
-  }, [sessions]);
+      const formattedSessions: ChatSession[] = data.map(session => ({
+        id: session.id,
+        title: session.title,
+        messages: [],
+        createdAt: session.created_at,
+        updatedAt: session.updated_at
+      }));
 
-  // Update current session messages when messages change
-  useEffect(() => {
-    if (currentSessionId && messages.length > 0) {
-      setSessions(prev => prev.map(session => 
-        session.id === currentSessionId 
-          ? { ...session, messages, updatedAt: new Date().toISOString() }
-          : session
-      ));
+      setSessions(formattedSessions);
+      
+      // Set current session to the most recent one
+      if (formattedSessions.length > 0 && !currentSessionId) {
+        setCurrentSessionId(formattedSessions[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
     }
-  }, [messages, currentSessionId]);
-
-  const createNewSession = () => {
-    const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: 'नई चैट',
-      messages: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    setSessions(prev => [...prev, newSession]);
-    setCurrentSessionId(newSession.id);
-    setMessages([]);
   };
 
+  // Load messages for current session
+  const loadMessages = async () => {
+    if (!currentSessionId) {
+      setMessages([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('session_id', currentSessionId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading messages:', error);
+        return;
+      }
+
+      const formattedMessages: Message[] = data.map(msg => ({
+        id: msg.id,
+        text: msg.content,
+        sender: msg.sender,
+        timestamp: msg.created_at
+      }));
+
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
+
+  // Create new chat session
+  const createNewSession = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert({
+          user_id: user.id,
+          title: 'नई चैट'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating session:', error);
+        return;
+      }
+
+      const newSession: ChatSession = {
+        id: data.id,
+        title: data.title,
+        messages: [],
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
+
+      setSessions(prev => [newSession, ...prev]);
+      setCurrentSessionId(newSession.id);
+      setMessages([]);
+    } catch (error) {
+      console.error('Error creating session:', error);
+    }
+  };
+
+  // Switch to different session
   const switchSession = (sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId);
-    if (session) {
-      setCurrentSessionId(sessionId);
-      setMessages(session.messages);
+    setCurrentSessionId(sessionId);
+  };
+
+  // Update session title
+  const updateSessionTitle = async (sessionId: string, title: string) => {
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .update({ title })
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('Error updating session title:', error);
+        return;
+      }
+
+      setSessions(prev => prev.map(session => 
+        session.id === sessionId ? { ...session, title } : session
+      ));
+    } catch (error) {
+      console.error('Error updating session title:', error);
     }
   };
 
-  const deleteSession = (sessionId: string) => {
-    setSessions(prev => {
-      const filtered = prev.filter(s => s.id !== sessionId);
+  // Delete session
+  const deleteSession = async (sessionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('Error deleting session:', error);
+        return;
+      }
+
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
       
-      // If we deleted the current session, switch to another one or create new
       if (sessionId === currentSessionId) {
-        if (filtered.length > 0) {
-          const lastSession = filtered[filtered.length - 1];
-          setCurrentSessionId(lastSession.id);
-          setMessages(lastSession.messages);
+        const remainingSessions = sessions.filter(s => s.id !== sessionId);
+        if (remainingSessions.length > 0) {
+          setCurrentSessionId(remainingSessions[0].id);
         } else {
-          createNewSession();
+          await createNewSession();
         }
       }
-      
-      return filtered;
-    });
+    } catch (error) {
+      console.error('Error deleting session:', error);
+    }
   };
 
-  const updateSessionTitle = (sessionId: string, title: string) => {
-    setSessions(prev => prev.map(session => 
-      session.id === sessionId 
-        ? { ...session, title }
-        : session
-    ));
-  };
-
+  // Send message
   const sendMessage = async (text: string): Promise<void> => {
-    if (user && !incrementMessageCount()) {
-      // Handle message limit exceeded
+    if (!user || !currentSessionId) {
+      // Handle guest users with localStorage fallback
+      if (!user) {
+        const today = new Date().toDateString();
+        const savedData = localStorage.getItem('vaaniai-guest-data');
+        let guestMessages = 20;
+        
+        if (savedData) {
+          const guestData = JSON.parse(savedData);
+          if (guestData.date === today) {
+            guestMessages = guestData.remaining;
+          }
+        }
+
+        if (guestMessages <= 0) {
+          const limitMessage: Message = {
+            id: Date.now().toString(),
+            text: "😔 आपके गेस्ट मैसेज समाप्त हो गए हैं। कृपया साइन अप करें। 📝",
+            sender: 'bot',
+            timestamp: new Date().toISOString(),
+          };
+          setMessages(prev => [...prev, limitMessage]);
+          return;
+        }
+
+        // Decrement guest messages
+        const newGuestMessages = guestMessages - 1;
+        localStorage.setItem('vaaniai-guest-data', JSON.stringify({
+          date: today,
+          remaining: newGuestMessages
+        }));
+      }
+      
+      // Handle guest mode with localStorage
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        text,
+        sender: 'user',
+        timestamp: new Date().toISOString(),
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+      setIsTyping(true);
+
+      try {
+        const aiResponse = await aiService.generateResponse(text, !user);
+        
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: aiResponse.message,
+          sender: 'bot',
+          timestamp: new Date().toISOString(),
+        };
+
+        setMessages(prev => [...prev, botMessage]);
+      } catch (error) {
+        console.error('Error getting AI response:', error);
+        
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: "🙏 क्षमा करें, अभी मैं उत्तर नहीं दे सकता। कृपया पुनः प्रयास करें। 🔄",
+          sender: 'bot',
+          timestamp: new Date().toISOString(),
+        };
+
+        setMessages(prev => [...prev, errorMessage]);
+      } finally {
+        setIsTyping(false);
+      }
+      return;
+    }
+
+    // Check message limit for authenticated users
+    if (!await incrementMessageCount()) {
       const limitMessage: Message = {
         id: Date.now().toString(),
         text: "😔 आपकी मासिक संदेश सीमा समाप्त हो गई है। कृपया अपना प्लान अपग्रेड करें। 📈",
@@ -129,70 +267,216 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       return;
     }
 
-    // Auto-generate session title from first message
-    const currentSession = sessions.find(s => s.id === currentSessionId);
-    if (currentSession && currentSession.messages.length === 0 && currentSession.title === 'नई चैट') {
-      const title = text.length > 30 ? text.substring(0, 30) + '...' : text;
-      updateSessionTitle(currentSessionId!, title);
-    }
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
+    // Add user message to UI immediately
+    const tempUserMessage: Message = {
+      id: `temp-${Date.now()}`,
       text,
       sender: 'user',
       timestamp: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setIsTyping(true);
+    setMessages(prev => [...prev, tempUserMessage]);
 
     try {
-      // Get AI response using OpenRouter API
-      const aiResponse = await aiService.generateResponse(text, !user);
+      // Save user message to database
+      const { data: savedUserMessage, error: userError } = await supabase
+        .from('messages')
+        .insert({
+          session_id: currentSessionId,
+          user_id: user.id,
+          content: text,
+          sender: 'user'
+        })
+        .select()
+        .single();
+
+      if (userError) {
+        console.error('Error saving user message:', userError);
+        return;
+      }
+
+      // Update the temporary message with real data
+      setMessages(prev => prev.map(msg => 
+        msg.id === tempUserMessage.id 
+          ? { ...msg, id: savedUserMessage.id }
+          : msg
+      ));
+
+      // Auto-update session title if it's the first message
+      if (messages.length === 0) {
+        const currentSession = sessions.find(s => s.id === currentSessionId);
+        if (currentSession && currentSession.title === 'नई चैट') {
+          const title = text.length > 30 ? text.substring(0, 30) + '...' : text;
+          await updateSessionTitle(currentSessionId, title);
+        }
+      }
+
+      setIsTyping(true);
+
+      // Get AI response
+      const aiResponse = await aiService.generateResponse(text, false);
       
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
+      // Add bot message to UI
+      const tempBotMessage: Message = {
+        id: `temp-bot-${Date.now()}`,
         text: aiResponse.message,
         sender: 'bot',
         timestamp: new Date().toISOString(),
       };
 
-      setMessages(prev => [...prev, botMessage]);
-      setIsTyping(false);
+      setMessages(prev => [...prev, tempBotMessage]);
+
+      // Save bot message to database
+      const { data: savedBotMessage, error: botError } = await supabase
+        .from('messages')
+        .insert({
+          session_id: currentSessionId,
+          user_id: user.id,
+          content: aiResponse.message,
+          sender: 'bot'
+        })
+        .select()
+        .single();
+
+      if (!botError && savedBotMessage) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempBotMessage.id 
+            ? { ...msg, id: savedBotMessage.id }
+            : msg
+        ));
+      }
+
+      // Log API usage
+      await supabase
+        .from('api_usage_logs')
+        .insert({
+          user_id: user.id,
+          endpoint: 'chat/completions',
+          model_used: 'openrouter/sonoma-dusk-alpha',
+          tokens_used: Math.ceil(text.length / 4),
+          response_time: 1000,
+          status: aiResponse.error ? 'error' : 'success',
+          error_message: aiResponse.error || null
+        });
+
     } catch (error) {
-      console.error('Error getting AI response:', error);
+      console.error('Error in sendMessage:', error);
       
-      // Fallback message in case of error
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `error-${Date.now()}`,
         text: "🙏 क्षमा करें, अभी मैं उत्तर नहीं दे सकता। कृपया पुनः प्रयास करें। 🔄",
         sender: 'bot',
         timestamp: new Date().toISOString(),
       };
 
       setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
     }
   };
 
-  const clearChat = () => {
-    if (currentSessionId) {
-      setSessions(prev => prev.map(session => 
-        session.id === currentSessionId 
-          ? { ...session, messages: [], updatedAt: new Date().toISOString() }
-          : session
-      ));
+  // Clear current session messages
+  const clearChat = async () => {
+    if (!currentSessionId) return;
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('session_id', currentSessionId);
+
+      if (error) {
+        console.error('Error clearing chat:', error);
+        return;
+      }
+
       setMessages([]);
+    } catch (error) {
+      console.error('Error clearing chat:', error);
     }
   };
 
-  const clearAllSessions = () => {
-    setSessions([]);
-    setMessages([]);
-    setCurrentSessionId(null);
-    localStorage.removeItem('vaaniai-chat-sessions');
-    createNewSession();
+  // Clear all sessions
+  const clearAllSessions = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error clearing all sessions:', error);
+        return;
+      }
+
+      setSessions([]);
+      setMessages([]);
+      setCurrentSessionId(null);
+      await createNewSession();
+    } catch (error) {
+      console.error('Error clearing all sessions:', error);
+    }
   };
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!user || !currentSessionId) return;
+
+    // Subscribe to new messages in current session
+    const messagesSubscription = supabase
+      .channel(`messages:${currentSessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `session_id=eq.${currentSessionId}`,
+        },
+        (payload) => {
+          const newMessage = payload.new as any;
+          const formattedMessage: Message = {
+            id: newMessage.id,
+            text: newMessage.content,
+            sender: newMessage.sender,
+            timestamp: newMessage.created_at
+          };
+          
+          setMessages(prev => {
+            // Avoid duplicates
+            if (prev.some(msg => msg.id === formattedMessage.id)) {
+              return prev;
+            }
+            return [...prev, formattedMessage];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      messagesSubscription.unsubscribe();
+    };
+  }, [user, currentSessionId]);
+
+  // Load initial data
+  useEffect(() => {
+    if (user) {
+      loadSessions();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadMessages();
+  }, [currentSessionId]);
+
+  // Create initial session if none exists
+  useEffect(() => {
+    if (user && sessions.length === 0 && !currentSessionId) {
+      createNewSession();
+    }
+  }, [user, sessions.length, currentSessionId]);
 
   const value: ChatContextType = {
     messages,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { 
   Users, 
   MessageSquare, 
@@ -56,7 +57,7 @@ const AdminDashboard: React.FC = () => {
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
 
   // Message management states
-  const [messages, setMessages] = useState<any[]>([]);
+  const [allMessages, setAllMessages] = useState<any[]>([]);
   const [messageSearchTerm, setMessageSearchTerm] = useState('');
   const [messageFilterSender, setMessageFilterSender] = useState<'all' | 'user' | 'bot'>('all');
   const [messageFilterDate, setMessageFilterDate] = useState('');
@@ -73,18 +74,28 @@ const AdminDashboard: React.FC = () => {
     monthMessages: 0
   });
 
-  // Load API config from localStorage
+  // Load API config from Supabase
   const loadApiConfig = () => {
-    try {
-      const savedConfig = localStorage.getItem('vaaniai-api-config');
-      if (savedConfig) {
-        const config = JSON.parse(savedConfig);
-        setApiConfig(config);
-      }
-    } catch (error) {
-      console.error('Error loading API config:', error);
-    }
+    supabase
+      .from('api_configs')
+      .select('*')
+      .limit(1)
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setApiConfig({
+            openaiKey: data.openai_key || '',
+            geminiKey: data.gemini_key || '',
+            claudeKey: data.claude_key || '',
+            rateLimit: data.rate_limit,
+            maxTokens: data.max_tokens,
+            temperature: data.temperature
+          });
+        }
+      })
+      .catch(error => console.error('Error loading API config:', error));
   };
+
   // Check admin authentication
   useEffect(() => {
     const isAdminAuth = localStorage.getItem('vaaniai-admin-auth');
@@ -105,17 +116,16 @@ const AdminDashboard: React.FC = () => {
     apiCalls: 0
   });
 
-  // Load live data from localStorage
+  // Load live data from Supabase
   const loadLiveData = () => {
-    try {
-      // Get users data
-      const users: UserType[] = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-      
-      // Get chat sessions to count messages
-      const chatSessions = JSON.parse(localStorage.getItem('vaaniai-chat-sessions') || '[]');
-      const totalMessages = chatSessions.reduce((total: number, session: any) => {
-        return total + (session.messages ? session.messages.length : 0);
-      }, 0);
+    Promise.all([
+      supabase.from('profiles').select('*'),
+      supabase.from('messages').select('*'),
+      supabase.from('api_usage_logs').select('*')
+    ]).then(([usersResult, messagesResult, apiLogsResult]) => {
+      const users = usersResult.data || [];
+      const messages = messagesResult.data || [];
+      const apiLogs = apiLogsResult.data || [];
 
       // Calculate user distribution
       const freeUsers = users.filter(user => user.plan === 'free').length;
@@ -126,28 +136,236 @@ const AdminDashboard: React.FC = () => {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const activeUsers = users.filter(user => {
-        const userCreated = new Date(user.createdAt);
+        const userCreated = new Date(user.created_at);
         return userCreated >= sevenDaysAgo;
       }).length;
 
       // Calculate revenue (premium users * 499 + enterprise users * 2000)
       const revenue = (premiumUsers * 499) + (enterpriseUsers * 2000);
 
-      // Mock API calls based on messages
-      const apiCalls = totalMessages * 2; // Assume 2 API calls per message
-
       setStats({
         totalUsers: users.length,
-        totalMessages,
+        totalMessages: messages.length,
         freeUsers,
         premiumUsers,
         enterpriseUsers,
         activeUsers,
         revenue,
-        apiCalls
+        apiCalls: apiLogs.length
       });
-    } catch (error) {
+    }).catch(error => {
       console.error('Error loading live data:', error);
+      // Fallback to localStorage if Supabase fails
+      try {
+        const users: UserType[] = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
+        const chatSessions = JSON.parse(localStorage.getItem('vaaniai-chat-sessions') || '[]');
+        const totalMessages = chatSessions.reduce((total: number, session: any) => {
+          return total + (session.messages ? session.messages.length : 0);
+        }, 0);
+
+        const freeUsers = users.filter(user => user.plan === 'free').length;
+        const premiumUsers = users.filter(user => user.plan === 'premium').length;
+        const enterpriseUsers = users.filter(user => user.plan === 'enterprise').length;
+
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const activeUsers = users.filter(user => {
+          const userCreated = new Date(user.createdAt);
+          return userCreated >= sevenDaysAgo;
+        }).length;
+
+        const revenue = (premiumUsers * 499) + (enterpriseUsers * 2000);
+        const apiCalls = totalMessages * 2;
+
+        setStats({
+          totalUsers: users.length,
+          totalMessages,
+          freeUsers,
+          premiumUsers,
+          enterpriseUsers,
+          activeUsers,
+          revenue,
+          apiCalls
+        });
+      } catch (localError) {
+        console.error('Error loading fallback data:', localError);
+      }
+    });
+  };
+
+  // Load users from Supabase
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading users:', error);
+        // Fallback to localStorage
+        const localUsers: UserType[] = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
+        setUsers(localUsers);
+        return;
+      }
+
+      const formattedUsers: UserType[] = data.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        messagesUsed: user.messages_used,
+        messagesLimit: user.messages_limit,
+        createdAt: user.created_at
+      }));
+
+      setUsers(formattedUsers);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      setUsers([]);
+    }
+  };
+
+  // Load messages from Supabase
+  const loadMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          chat_sessions (
+            id,
+            title,
+            created_at
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      if (error) {
+        console.error('Error loading messages:', error);
+        // Fallback to localStorage
+        const chatSessions = JSON.parse(localStorage.getItem('vaaniai-chat-sessions') || '[]');
+        const allMessages: any[] = [];
+        
+        chatSessions.forEach((session: any) => {
+          if (session.messages && Array.isArray(session.messages)) {
+            session.messages.forEach((message: any) => {
+              allMessages.push({
+                ...message,
+                sessionId: session.id,
+                sessionTitle: session.title,
+                sessionCreatedAt: session.createdAt
+              });
+            });
+          }
+        });
+        
+        setAllMessages(allMessages);
+        calculateMessageStats(allMessages);
+        return;
+      }
+
+      const formattedMessages = data.map(msg => ({
+        id: msg.id,
+        text: msg.content,
+        sender: msg.sender,
+        timestamp: msg.created_at,
+        sessionId: msg.session_id,
+        sessionTitle: msg.chat_sessions?.title || 'Unknown Session',
+        sessionCreatedAt: msg.chat_sessions?.created_at || msg.created_at
+      }));
+
+      setAllMessages(formattedMessages);
+      calculateMessageStats(formattedMessages);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      setAllMessages([]);
+    }
+  };
+
+  // Update user plan in Supabase
+  const updateUserPlan = async (userId: string, plan: 'free' | 'premium' | 'enterprise') => {
+    const limits = {
+      free: 100,
+      premium: 5000,
+      enterprise: 999999
+    };
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          plan, 
+          messages_limit: limits[plan] 
+        })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating user plan:', error);
+        return;
+      }
+
+      // Update local state
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, plan, messagesLimit: limits[plan] }
+          : user
+      });
+      
+      loadLiveData(); // Refresh stats
+    } catch (error) {
+      console.error('Error updating user plan:', error);
+    }
+  };
+
+  // Delete user from Supabase
+  const deleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error deleting user:', error);
+        return;
+      }
+
+      // Update local state
+      setUsers(prev => prev.filter(user => user.id !== userId));
+      setSelectedUsers(prev => prev.filter(id => id !== userId));
+      loadLiveData(); // Refresh stats
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
+  };
+
+  // Reset user messages in Supabase
+  const resetUserMessages = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ messages_used: 0 })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error resetting user messages:', error);
+        return;
+      }
+
+      // Update local state
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, messagesUsed: 0 }
+          : user
+      ));
+    } catch (error) {
+      console.error('Error resetting user messages:', error);
     }
   };
 
@@ -163,44 +381,6 @@ const AdminDashboard: React.FC = () => {
     
     return () => clearInterval(interval);
   }, []);
-
-  // Load users from localStorage
-  const loadUsers = () => {
-    try {
-      const usersData: UserType[] = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-      setUsers(usersData);
-    } catch (error) {
-      console.error('Error loading users:', error);
-      setUsers([]);
-    }
-  };
-
-  // Load messages from localStorage
-  const loadMessages = () => {
-    try {
-      const chatSessions = JSON.parse(localStorage.getItem('vaaniai-chat-sessions') || '[]');
-      const allMessages: any[] = [];
-      
-      chatSessions.forEach((session: any) => {
-        if (session.messages && Array.isArray(session.messages)) {
-          session.messages.forEach((message: any) => {
-            allMessages.push({
-              ...message,
-              sessionId: session.id,
-              sessionTitle: session.title,
-              sessionCreatedAt: session.createdAt
-            });
-          });
-        }
-      });
-      
-      setMessages(allMessages);
-      calculateMessageStats(allMessages);
-    } catch (error) {
-      console.error('Error loading messages:', error);
-      setMessages([]);
-    }
-  };
 
   // Calculate message statistics
   const calculateMessageStats = (allMessages: any[]) => {
@@ -254,58 +434,6 @@ const AdminDashboard: React.FC = () => {
       }
     });
 
-  // User management functions
-  const updateUserPlan = (userId: string, plan: 'free' | 'premium' | 'enterprise') => {
-    const updatedUsers = users.map(user => {
-      if (user.id === userId) {
-        const limits = {
-          free: 100,
-          premium: 5000,
-          enterprise: 999999
-        };
-        return { ...user, plan, messagesLimit: limits[plan] };
-      }
-      return user;
-    });
-    
-    setUsers(updatedUsers);
-    localStorage.setItem('vaaniai-users', JSON.stringify(updatedUsers));
-    
-    // Update current user if it's the same user
-    const currentUser = JSON.parse(localStorage.getItem('vaaniai-user') || 'null');
-    if (currentUser && currentUser.id === userId) {
-      const updatedCurrentUser = updatedUsers.find(u => u.id === userId);
-      if (updatedCurrentUser) {
-        const { ...userWithoutPassword } = updatedCurrentUser;
-        localStorage.setItem('vaaniai-user', JSON.stringify(userWithoutPassword));
-      }
-    }
-    
-    loadLiveData(); // Refresh stats
-  };
-
-  const deleteUser = (userId: string) => {
-    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      const updatedUsers = users.filter(user => user.id !== userId);
-      setUsers(updatedUsers);
-      localStorage.setItem('vaaniai-users', JSON.stringify(updatedUsers));
-      setSelectedUsers(selectedUsers.filter(id => id !== userId));
-      loadLiveData(); // Refresh stats
-    }
-  };
-
-  const resetUserMessages = (userId: string) => {
-    const updatedUsers = users.map(user => {
-      if (user.id === userId) {
-        return { ...user, messagesUsed: 0 };
-      }
-      return user;
-    });
-    
-    setUsers(updatedUsers);
-    localStorage.setItem('vaaniai-users', JSON.stringify(updatedUsers));
-  };
-
   const getPlanColor = (plan: string) => {
     switch (plan) {
       case 'free': return 'bg-gray-100 text-gray-800';
@@ -334,16 +462,64 @@ const AdminDashboard: React.FC = () => {
     temperature: 0.7
   });
 
-  // Save API config function
-  const saveApiConfig = () => {
+  // Save API config to Supabase
+  const saveApiConfig = async () => {
     try {
-      localStorage.setItem('vaaniai-api-config', JSON.stringify(apiConfig));
-      alert('API configuration saved successfully!');
+      // First, try to update existing config
+      const { data: existingConfig } = await supabase
+        .from('api_configs')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (existingConfig) {
+        // Update existing config
+        const { error } = await supabase
+          .from('api_configs')
+          .update({
+            openai_key: apiConfig.openaiKey,
+            gemini_key: apiConfig.geminiKey,
+            claude_key: apiConfig.claudeKey,
+            rate_limit: apiConfig.rateLimit,
+            max_tokens: apiConfig.maxTokens,
+            temperature: apiConfig.temperature
+          })
+          .eq('id', existingConfig.id);
+
+        if (error) {
+          throw error;
+        }
+      } else {
+        // Insert new config
+        const { error } = await supabase
+          .from('api_configs')
+          .insert({
+            openai_key: apiConfig.openaiKey,
+            gemini_key: apiConfig.geminiKey,
+            claude_key: apiConfig.claudeKey,
+            rate_limit: apiConfig.rateLimit,
+            max_tokens: apiConfig.maxTokens,
+            temperature: apiConfig.temperature
+          });
+
+        if (error) {
+          throw error;
+        }
+      }
+
+      // Update AI service with new API key
+      if (apiConfig.openaiKey) {
+        const { aiService } = await import('../services/aiService');
+        aiService.updateApiKey(apiConfig.openaiKey);
+      }
+
+      alert('API configuration saved successfully to Supabase!');
     } catch (error) {
       console.error('Error saving API config:', error);
-      alert('Error saving API configuration!');
+      alert('Error saving API configuration to Supabase!');
     }
   };
+
   const handleLogout = () => {
     localStorage.removeItem('vaaniai-admin-auth');
     navigate('/admin/login');
@@ -778,7 +954,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="max-h-96 overflow-y-auto">
-          {messages
+          {allMessages
             .filter(message => {
               const matchesSearch = message.text.toLowerCase().includes(messageSearchTerm.toLowerCase()) ||
                                  message.sessionTitle.toLowerCase().includes(messageSearchTerm.toLowerCase());
@@ -811,7 +987,7 @@ const AdminDashboard: React.FC = () => {
             ))}
         </div>
 
-        {messages.length === 0 && (
+        {allMessages.length === 0 && (
           <div className="text-center py-12">
             <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No messages found</h3>

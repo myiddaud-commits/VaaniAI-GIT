@@ -1,29 +1,35 @@
+import { supabase } from '../lib/supabase';
+
 interface AIResponse {
   message: string;
   error?: string;
 }
 
 class AIService {
-  private apiKey: string;
-  private baseUrl: string;
+  private apiKey: string = '';
+  private baseUrl: string = 'https://openrouter.ai/api/v1';
 
   constructor() {
     this.loadApiConfig();
-    this.baseUrl = 'https://openrouter.ai/api/v1';
   }
 
-  private loadApiConfig() {
+  private async loadApiConfig() {
     try {
-      const savedConfig = localStorage.getItem('vaaniai-api-config');
-      if (savedConfig) {
-        const config = JSON.parse(savedConfig);
-        this.apiKey = config.openaiKey || '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';
+      // Try to load from Supabase first
+      const { data, error } = await supabase
+        .from('api_configs')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        this.apiKey = data.openai_key || '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';
       } else {
-        // Default API key
+        // Fallback to default API key
         this.apiKey = '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';
       }
     } catch (error) {
-      console.error('Error loading API config:', error);
+      console.error('Error loading API config from Supabase:', error);
       this.apiKey = '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';
     }
   }
@@ -33,21 +39,30 @@ class AIService {
     this.apiKey = newApiKey;
   }
 
-  // Method to get current API configuration
-  public getApiConfig() {
+  // Method to get current API configuration from Supabase
+  public async getApiConfig() {
     try {
-      const savedConfig = localStorage.getItem('vaaniai-api-config');
-      if (savedConfig) {
-        return JSON.parse(savedConfig);
+      const { data, error } = await supabase
+        .from('api_configs')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error getting API config:', error);
+        return null;
       }
+
+      return data;
     } catch (error) {
       console.error('Error getting API config:', error);
+      return null;
     }
-    return null;
   }
+
   async generateResponse(message: string, isGuest: boolean = false): Promise<AIResponse> {
     // Reload API config before each request to ensure we have the latest settings
-    this.loadApiConfig();
+    await this.loadApiConfig();
     
     try {
       const systemPrompt = `You are VaaniAI, a helpful AI assistant that responds in Hindi (Devanagari script). You are designed to help users with various questions and tasks in Hindi language.
@@ -69,8 +84,8 @@ Examples:
 - User: "AI kya hai" → You: "AI यानी आर्टिफिशियल इंटेलिजेंस एक तकनीक है जो मशीनों को इंसानों की तरह सोचने में मदद करती है। 🤖"`;
 
       // Get current API configuration for request parameters
-      const apiConfig = this.getApiConfig();
-      const maxTokens = apiConfig?.maxTokens || 500;
+      const apiConfig = await this.getApiConfig();
+      const maxTokens = apiConfig?.max_tokens || 500;
       const temperature = apiConfig?.temperature || 0.7;
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {

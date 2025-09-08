@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { User, AuthContextType } from '../types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,62 +19,119 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('vaaniai-user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication - in real app, this would call an API
-    const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-    const foundUser = users.find((u: any) => u.email === email && u.password === password);
-    
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('vaaniai-user', JSON.stringify(userWithoutPassword));
-      return true;
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+      } else if (data) {
+        setUser({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          plan: data.plan,
+          messagesUsed: data.messages_used,
+          messagesLimit: data.messages_limit,
+          createdAt: data.created_at
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
     }
-    return false;
+  };
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('Login error:', error);
+        return false;
+      }
+
+      return !!data.user;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    }
   };
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    // Mock registration - in real app, this would call an API
-    const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-    
-    if (users.find((u: any) => u.email === email)) {
-      return false; // User already exists
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
+        },
+      });
+
+      if (error) {
+        console.error('Registration error:', error);
+        return false;
+      }
+
+      return !!data.user;
+    } catch (error) {
+      console.error('Registration error:', error);
+      return false;
     }
-
-    const newUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      password,
-      plan: 'free' as const,
-      messagesUsed: 0,
-      messagesLimit: 100,
-      createdAt: new Date().toISOString(),
-    };
-
-    users.push(newUser);
-    localStorage.setItem('vaaniai-users', JSON.stringify(users));
-
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
-    localStorage.setItem('vaaniai-user', JSON.stringify(userWithoutPassword));
-    return true;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('vaaniai-user');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const updatePlan = (plan: 'free' | 'premium' | 'enterprise') => {
+  const updatePlan = async (plan: 'free' | 'premium' | 'enterprise') => {
     if (!user) return;
 
     const limits = {
@@ -81,48 +140,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       enterprise: 999999
     };
 
-    const updatedUser = {
-      ...user,
-      plan,
-      messagesLimit: limits[plan]
-    };
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ 
+          plan, 
+          messages_limit: limits[plan] 
+        })
+        .eq('id', user.id)
+        .select()
+        .single();
 
-    setUser(updatedUser);
-    localStorage.setItem('vaaniai-user', JSON.stringify(updatedUser));
+      if (error) {
+        console.error('Error updating plan:', error);
+        return;
+      }
 
-    // Update in users array
-    const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === user.id);
-    if (userIndex !== -1) {
-      users[userIndex] = { ...users[userIndex], plan, messagesLimit: limits[plan] };
-      localStorage.setItem('vaaniai-users', JSON.stringify(users));
+      if (data) {
+        setUser({
+          ...user,
+          plan: data.plan,
+          messagesLimit: data.messages_limit
+        });
+      }
+    } catch (error) {
+      console.error('Error updating plan:', error);
     }
   };
 
-  const incrementMessageCount = (): boolean => {
+  const incrementMessageCount = async (): Promise<boolean> => {
     if (!user) return false;
     
     if (user.messagesUsed >= user.messagesLimit) {
       return false;
     }
 
-    const updatedUser = {
-      ...user,
-      messagesUsed: user.messagesUsed + 1
-    };
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ messages_used: user.messagesUsed + 1 })
+        .eq('id', user.id)
+        .select()
+        .single();
 
-    setUser(updatedUser);
-    localStorage.setItem('vaaniai-user', JSON.stringify(updatedUser));
+      if (error) {
+        console.error('Error incrementing message count:', error);
+        return false;
+      }
 
-    // Update in users array
-    const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === user.id);
-    if (userIndex !== -1) {
-      users[userIndex].messagesUsed = updatedUser.messagesUsed;
-      localStorage.setItem('vaaniai-users', JSON.stringify(users));
+      if (data) {
+        setUser({
+          ...user,
+          messagesUsed: data.messages_used
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error incrementing message count:', error);
+      return false;
     }
-
-    return true;
   };
 
   const value: AuthContextType = {
@@ -133,6 +210,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updatePlan,
     incrementMessageCount,
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-whatsapp-primary"></div>
+      </div>
+    );
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

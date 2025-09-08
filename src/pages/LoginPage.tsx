@@ -46,13 +46,13 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      const success = await login('demo@example.com', 'demo123');
-      if (success) {
-        navigate('/chat');
-      } else {
+      // First check if demo user exists in localStorage
+      const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
+      let demoUser = users.find((u: any) => u.email === 'demo@example.com');
+      
+      if (!demoUser) {
         // Create demo user if doesn't exist
-        const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-        const demoUser = {
+        demoUser = {
           id: 'demo',
           name: 'डेमो उपयोगकर्ता',
           email: 'demo@example.com',
@@ -64,11 +64,14 @@ const LoginPage: React.FC = () => {
         };
         users.push(demoUser);
         localStorage.setItem('vaaniai-users', JSON.stringify(users));
-        
-        const loginSuccess = await login('demo@example.com', 'demo123');
-        if (loginSuccess) {
-          navigate('/chat');
-        }
+      }
+      
+      // Try to login with demo credentials
+      const success = await login('demo@example.com', 'demo123');
+      if (success) {
+        navigate('/chat');
+      } else {
+        setError('डेमो लॉगिन में समस्या हुई। कृपया पुनः प्रयास करें।');
       }
     } catch (err) {
       setError('डेमो लॉगिन में त्रुटि हुई।');

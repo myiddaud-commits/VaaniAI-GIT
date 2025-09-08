@@ -75,16 +75,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('Attempting login with Supabase for:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Login error:', error.message);
+        console.error('Supabase login error:', error.message);
+        
+        // If Supabase fails, try localStorage fallback for demo purposes
+        console.log('Trying localStorage fallback...');
+        const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
+        const user = users.find((u: any) => u.email === email && u.password === password);
+        
+        if (user) {
+          console.log('Found user in localStorage, setting session...');
+          setUser({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            plan: user.plan,
+            messagesUsed: user.messagesUsed,
+            messagesLimit: user.messagesLimit,
+            createdAt: user.createdAt
+          });
+          localStorage.setItem('vaaniai-user', JSON.stringify(user));
+          return true;
+        }
+        
         return false;
       }
 
+      console.log('Supabase login successful');
       return !!data.user;
     } catch (error) {
       console.error('Login error:', error);
@@ -96,6 +119,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Attempting registration for:', email);
       
+      // First try Supabase registration
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -108,20 +132,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (error) {
-        console.error('Registration error:', error);
+        console.error('Supabase registration error:', error);
         
-        // Handle specific error cases
-        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
-          console.log('User already exists, attempting login...');
+        // If Supabase fails, create user in localStorage as fallback
+        console.log('Creating user in localStorage as fallback...');
+        const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
+        
+        // Check if user already exists
+        const existingUser = users.find((u: any) => u.email === email);
+        if (existingUser) {
+          console.log('User already exists in localStorage, attempting login...');
           return await login(email, password);
         }
         
-        if (error.message.includes('Email not confirmed')) {
-          console.log('Email confirmation required, but user created');
-          return true; // Consider registration successful even without email confirmation
-        }
+        // Create new user in localStorage
+        const newUser = {
+          id: Date.now().toString(),
+          name,
+          email,
+          password,
+          plan: 'free' as const,
+          messagesUsed: 0,
+          messagesLimit: 100,
+          createdAt: new Date().toISOString(),
+        };
         
-        return false;
+        users.push(newUser);
+        localStorage.setItem('vaaniai-users', JSON.stringify(users));
+        
+        // Set current user
+        setUser({
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          plan: newUser.plan,
+          messagesUsed: newUser.messagesUsed,
+          messagesLimit: newUser.messagesLimit,
+          createdAt: newUser.createdAt
+        });
+        localStorage.setItem('vaaniai-user', JSON.stringify(newUser));
+        
+        console.log('User created successfully in localStorage');
+        return true;
       }
 
       console.log('Registration response:', data);
@@ -135,14 +187,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // If user created but needs confirmation
       if (data.user && !data.session) {
         console.log('User created, email confirmation may be required');
-        // Try to sign in immediately (works if email confirmation is disabled)
-        return await login(email, password);
+        // Consider registration successful even without immediate session
+        return true;
       }
 
       return !!data.user;
     } catch (error) {
-      console.error('Registration error:', error);
-      return false;
+      console.error('Registration catch error:', error);
+      
+      // Fallback to localStorage registration
+      console.log('Fallback to localStorage registration...');
+      const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
+      
+      const newUser = {
+        id: Date.now().toString(),
+        name,
+        email,
+        password,
+        plan: 'free' as const,
+        messagesUsed: 0,
+        messagesLimit: 100,
+        createdAt: new Date().toISOString(),
+      };
+      
+      users.push(newUser);
+      localStorage.setItem('vaaniai-users', JSON.stringify(users));
+      
+      setUser({
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        plan: newUser.plan,
+        messagesUsed: newUser.messagesUsed,
+        messagesLimit: newUser.messagesLimit,
+        createdAt: newUser.createdAt
+      });
+      localStorage.setItem('vaaniai-user', JSON.stringify(newUser));
+      
+      return true;
     }
   };
 

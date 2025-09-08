@@ -473,22 +473,22 @@ const ChatPage: React.FC = () => {
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 pb-safe">
           {currentMessages.length === 0 && (
-            <div className="text-center text-gray-500 mt-8 px-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <Bot className="h-10 w-10 text-white" />
+            <div className="text-center text-gray-500 mt-4 md:mt-8 px-2 md:px-4">
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-lg">
+                <Bot className="h-8 w-8 md:h-10 md:w-10 text-white" />
               </div>
-              <h3 className="text-xl font-semibold mb-3 text-gray-800">
+              <h3 className="text-lg md:text-xl font-semibold mb-2 md:mb-3 text-gray-800">
                 VaaniAI में आपका स्वागत है!
               </h3>
-              <p className="text-gray-600 max-w-md mx-auto leading-relaxed">
+              <p className="text-sm md:text-base text-gray-600 max-w-md mx-auto leading-relaxed">
                 {isGuest 
                   ? `मुझसे हिंदी में कुछ भी पूछें। आपके पास ${guestMessageLimit - guestMessagesUsed} मुफ़्त संदेश बचे हैं।`
                   : 'मुझसे हिंदी में कुछ भी पूछें। मैं आपकी सहायता करने के लिए यहाँ हूँ।'
                 }
               </p>
               {isGuest && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
+                <div className="mt-3 md:mt-4 p-2 md:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs md:text-sm text-blue-800">
                     💡 अधिक संदेश और बेहतर सुविधाओं के लिए{' '}
                     <Link to="/register" className="font-medium underline hover:text-blue-900">
                       रजिस्टर करें

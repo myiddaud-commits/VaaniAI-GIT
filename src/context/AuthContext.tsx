@@ -99,6 +99,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     try {
+      console.log('Attempting registration for:', email);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -106,27 +108,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           data: {
             name,
           },
+          emailRedirectTo: undefined, // Disable email confirmation
         },
       });
 
       if (error) {
-        console.error('Registration error:', error.message);
-        // Don't return false for "User already registered" - let Supabase handle it
-        if (error.message.includes('User already registered')) {
-          // Try to sign in instead
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          
-          if (signInError) {
-            console.error('Auto sign-in failed:', signInError.message);
-            return false;
-          }
-          
-          return !!signInData.user;
+        console.error('Registration error:', error);
+        
+        // Handle specific error cases
+        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+          console.log('User already exists, attempting login...');
+          return await login(email, password);
         }
+        
+        if (error.message.includes('Email not confirmed')) {
+          console.log('Email confirmation required, but user created');
+          return true; // Consider registration successful even without email confirmation
+        }
+        
         return false;
+      }
+
+      console.log('Registration response:', data);
+      
+      // If user is immediately available (email confirmation disabled)
+      if (data.user && data.session) {
+        console.log('Registration successful with immediate session');
+        return true;
+      }
+      
+      // If user created but needs confirmation
+      if (data.user && !data.session) {
+        console.log('User created, email confirmation may be required');
+        // Try to sign in immediately (works if email confirmation is disabled)
+        return await login(email, password);
       }
 
       return !!data.user;

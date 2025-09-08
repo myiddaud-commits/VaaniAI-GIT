@@ -39,13 +39,19 @@ const RegisterPage: React.FC = () => {
     setError('');
 
     try {
+      console.log('Starting registration process...');
       const success = await registerUser(data.name, data.email, data.password);
+      console.log('Registration result:', success);
+      
       if (success) {
+        console.log('Registration successful, navigating to chat...');
         navigate('/chat');
       } else {
-        setError('पंजीकरण में समस्या हुई। यदि आपका खाता पहले से है, तो लॉगिन करें।');
+        console.log('Registration failed');
+        setError('पंजीकरण में समस्या हुई। कृपया अलग ईमेल का उपयोग करें या लॉगिन करने का प्रयास करें।');
       }
     } catch (err) {
+      console.error('Registration catch error:', err);
       setError('पंजीकरण में त्रुटि हुई। कृपया पुनः प्रयास करें।');
     } finally {
       setIsLoading(false);

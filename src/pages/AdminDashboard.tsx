@@ -486,43 +486,78 @@ const AdminDashboard: React.FC = () => {
     }
 
     try {
-      // First, try to update existing config
-      const { data: existingConfig } = await supabase
-        .from('api_configs')
-        .select('id')
-        .order('updated_at', { ascending: false })
-        .limit(1);
-
-      if (existingConfig && existingConfig.length > 0) {
-        // Update existing config
-        const { error } = await supabase
-          .from('api_configs')
-          .update({
-            openrouter_key: openRouterConfig.apiKey,
-            selected_model: openRouterConfig.selectedModel,
-            rate_limit: apiConfig.rateLimit,
-            max_tokens: apiConfig.maxTokens,
-            temperature: apiConfig.temperature
-          })
-          .eq('id', existingConfig[0].id);
-
-        if (error) {
-          throw error;
-        }
+      // Check if we should use localStorage
+      const useLocal = localStorage.getItem('vaaniai-use-local-api') === 'true';
+      
+      if (useLocal) {
+        // Save to localStorage
+        const config = {
+          openRouterKey: openRouterConfig.apiKey,
+          selectedModel: openRouterConfig.selectedModel,
+          rateLimit: apiConfig.rateLimit,
+          maxTokens: apiConfig.maxTokens,
+          temperature: apiConfig.temperature,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem('vaaniai-api-config', JSON.stringify(config));
+        console.log('Saved API config to localStorage');
       } else {
-        // Insert new config
-        const { error } = await supabase
-          .from('api_configs')
-          .insert({
-            openrouter_key: openRouterConfig.apiKey,
-            selected_model: openRouterConfig.selectedModel,
-            rate_limit: apiConfig.rateLimit,
-            max_tokens: apiConfig.maxTokens,
-            temperature: apiConfig.temperature
-          });
+        // Try to save to Supabase
+        try {
+          // First, try to update existing config
+          const { data: existingConfig } = await supabase
+            .from('api_configs')
+            .select('id')
+            .order('updated_at', { ascending: false })
+            .limit(1);
 
-        if (error) {
-          throw error;
+          if (existingConfig && existingConfig.length > 0) {
+            // Update existing config
+            const { error } = await supabase
+              .from('api_configs')
+              .update({
+                openrouter_key: openRouterConfig.apiKey,
+                selected_model: openRouterConfig.selectedModel,
+                rate_limit: apiConfig.rateLimit,
+                max_tokens: apiConfig.maxTokens,
+                temperature: apiConfig.temperature
+              })
+              .eq('id', existingConfig[0].id);
+
+            if (error) {
+              throw error;
+            }
+          } else {
+            // Insert new config
+            const { error } = await supabase
+              .from('api_configs')
+              .insert({
+                openrouter_key: openRouterConfig.apiKey,
+                selected_model: openRouterConfig.selectedModel,
+                rate_limit: apiConfig.rateLimit,
+                max_tokens: apiConfig.maxTokens,
+                temperature: apiConfig.temperature
+              });
+
+            if (error) {
+              throw error;
+            }
+          }
+          console.log('Saved API config to Supabase');
+        } catch (supabaseError) {
+          console.error('Failed to save to Supabase, falling back to localStorage:', supabaseError);
+          // Fallback to localStorage
+          localStorage.setItem('vaaniai-use-local-api', 'true');
+          const config = {
+            openRouterKey: openRouterConfig.apiKey,
+            selectedModel: openRouterConfig.selectedModel,
+            rateLimit: apiConfig.rateLimit,
+            maxTokens: apiConfig.maxTokens,
+            temperature: apiConfig.temperature,
+            updatedAt: new Date().toISOString()
+          };
+          localStorage.setItem('vaaniai-api-config', JSON.stringify(config));
+          console.log('Saved API config to localStorage as fallback');
         }
       }
 
@@ -533,7 +568,7 @@ const AdminDashboard: React.FC = () => {
         aiService.updateSelectedModel(openRouterConfig.selectedModel);
       }
 
-      alert('API configuration saved successfully to Supabase!');
+      alert('API configuration saved successfully!');
       
       // Reload the config to verify it was saved
       loadApiConfig();
@@ -1031,13 +1066,43 @@ const AdminDashboard: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">API Configuration</h1>
-        <button
-          onClick={saveApiConfig}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Save className="h-4 w-4" />
-          <span>Save Config</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => {
+              const useLocal = localStorage.getItem('vaaniai-use-local-api') !== 'true';
+              localStorage.setItem('vaaniai-use-local-api', useLocal.toString());
+              loadApiConfig();
+              alert(`Switched to ${useLocal ? 'localStorage' : 'Supabase'} mode. Please refresh the page.`);
+            }}
+            className="flex items-center space-x-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>{localStorage.getItem('vaaniai-use-local-api') === 'true' ? 'Use Supabase' : 'Use Local'}</span>
+          </button>
+          <button
+            onClick={saveApiConfig}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Save className="h-4 w-4" />
+            <span>Save Config</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Storage Mode Indicator */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center space-x-2">
+          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+          <span className="text-sm font-medium text-blue-800">
+            Storage Mode: {localStorage.getItem('vaaniai-use-local-api') === 'true' ? 'localStorage (Local)' : 'Supabase (Database)'}
+          </span>
+        </div>
+        <p className="text-xs text-blue-600 mt-1">
+          {localStorage.getItem('vaaniai-use-local-api') === 'true' 
+            ? 'API configuration is stored locally in your browser. Use "Use Supabase" button to switch to database storage.'
+            : 'API configuration is stored in Supabase database. Use "Use Local" button to switch to local storage if database access fails.'
+          }
+        </p>
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-sm border">
@@ -1158,6 +1223,12 @@ const AdminDashboard: React.FC = () => {
             <span className="text-sm text-gray-600">Current Model</span>
             <span className="text-sm text-gray-500">
               {openRouterConfig.selectedModel}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">Storage Location</span>
+            <span className="text-sm text-gray-500">
+              {localStorage.getItem('vaaniai-use-local-api') === 'true' ? 'localStorage' : 'Supabase'}
             </span>
           </div>
           <div className="flex items-center justify-between">

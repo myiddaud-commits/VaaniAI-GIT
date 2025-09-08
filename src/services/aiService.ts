@@ -9,6 +9,7 @@ class AIService {
   private apiKey: string = '';
   private selectedModel: string = 'openrouter/sonoma-dusk-alpha';
   private baseUrl: string = 'https://openrouter.ai/api/v1';
+  private useLocalStorage: boolean = false;
 
   constructor() {
     this.loadApiConfig();
@@ -16,31 +17,76 @@ class AIService {
 
   private async loadApiConfig() {
     try {
-      // Try to load from Supabase first
-      const { data, error } = await supabase
-        .from('api_configs')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(1);
+      // Check if we should use localStorage (for local development)
+      const useLocal = localStorage.getItem('vaaniai-use-local-api') === 'true';
+      
+      if (useLocal) {
+        this.useLocalStorage = true;
+        this.loadFromLocalStorage();
+      } else {
+        // Try to load from Supabase first
+        const { data, error } = await supabase
+          .from('api_configs')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1);
 
-      if (!error && data && data.length > 0) {
-        console.error('Error loading API config from Supabase:', error.message || error);
-        this.apiKey = config.openrouter_key || '';
-        this.selectedModel = config.selected_model || 'openrouter/sonoma-dusk-alpha';
-        console.log('Loaded API config from Supabase:', { 
+        if (!error && data && data.length > 0) {
+          const config = data[0];
+          this.apiKey = config.openrouter_key || '';
+          this.selectedModel = config.selected_model || 'openrouter/sonoma-dusk-alpha';
+          console.log('Loaded API config from Supabase:', { 
+            hasApiKey: !!this.apiKey, 
+            model: this.selectedModel 
+          });
+        } else {
+          console.log('No API config found in Supabase, falling back to localStorage');
+          this.useLocalStorage = true;
+          this.loadFromLocalStorage();
+        }
+      }
+    } catch (error) {
+      console.error('Error loading API config from Supabase:', error instanceof Error ? error.message : error);
+      console.log('Falling back to localStorage due to error');
+      this.useLocalStorage = true;
+      this.loadFromLocalStorage();
+    }
+  }
+
+  private loadFromLocalStorage() {
+    try {
+      const saved = localStorage.getItem('vaaniai-api-config');
+      if (saved) {
+        const config = JSON.parse(saved);
+        this.apiKey = config.openRouterKey || '';
+        this.selectedModel = config.selectedModel || 'openrouter/sonoma-dusk-alpha';
+        console.log('Loaded API config from localStorage:', { 
           hasApiKey: !!this.apiKey, 
           model: this.selectedModel 
         });
       } else {
-        console.log('No API config found in Supabase, using fallback');
-        // Use fallback API key if no config in database
+        console.log('No API config found in localStorage');
         this.apiKey = '';
         this.selectedModel = 'openrouter/sonoma-dusk-alpha';
       }
     } catch (error) {
-      console.error('Error loading API config from Supabase:', error instanceof Error ? error.message : error);
+      console.error('Error loading from localStorage:', error);
       this.apiKey = '';
       this.selectedModel = 'openrouter/sonoma-dusk-alpha';
+    }
+  }
+
+  private saveToLocalStorage() {
+    try {
+      const config = {
+        openRouterKey: this.apiKey,
+        selectedModel: this.selectedModel,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem('vaaniai-api-config', JSON.stringify(config));
+      console.log('Saved API config to localStorage');
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
     }
   }
 

@@ -73,6 +73,18 @@ const AdminDashboard: React.FC = () => {
     monthMessages: 0
   });
 
+  // Load API config from localStorage
+  const loadApiConfig = () => {
+    try {
+      const savedConfig = localStorage.getItem('vaaniai-api-config');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        setApiConfig(config);
+      }
+    } catch (error) {
+      console.error('Error loading API config:', error);
+    }
+  };
   // Check admin authentication
   useEffect(() => {
     const isAdminAuth = localStorage.getItem('vaaniai-admin-auth');
@@ -144,6 +156,7 @@ const AdminDashboard: React.FC = () => {
     loadLiveData();
     loadUsers();
     loadMessages();
+    loadApiConfig();
     
     // Refresh data every 30 seconds
     const interval = setInterval(loadLiveData, 30000);
@@ -313,14 +326,24 @@ const AdminDashboard: React.FC = () => {
   };
 
   const [apiConfig, setApiConfig] = useState<ApiConfig>({
-    openaiKey: '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',
-    geminiKey: 'AIza...',
-    claudeKey: 'sk-ant...',
+    openaiKey: '',
+    geminiKey: '',
+    claudeKey: '',
     rateLimit: 100,
     maxTokens: 4000,
     temperature: 0.7
   });
 
+  // Save API config function
+  const saveApiConfig = () => {
+    try {
+      localStorage.setItem('vaaniai-api-config', JSON.stringify(apiConfig));
+      alert('API configuration saved successfully!');
+    } catch (error) {
+      console.error('Error saving API config:', error);
+      alert('Error saving API configuration!');
+    }
+  };
   const handleLogout = () => {
     localStorage.removeItem('vaaniai-admin-auth');
     navigate('/admin/login');
@@ -804,10 +827,7 @@ const AdminDashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">API Configuration</h1>
         <button
-          onClick={() => {
-            localStorage.setItem('vaaniai-api-config', JSON.stringify(apiConfig));
-            alert('API configuration saved successfully!');
-          }}
+          onClick={saveApiConfig}
           className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           <Save className="h-4 w-4" />

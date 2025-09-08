@@ -46,29 +46,30 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      const success = await login('demo@example.com', 'demo123');
-      if (success) {
+      // First try to login with demo credentials
+      try {
+        const success = await login('demo@example.com', 'demo123');
+        if (success) {
+          navigate('/chat');
+          return;
+        }
+      } catch (loginError) {
+        // If login fails, the demo user doesn't exist, so we need to register them
+        console.log('Demo user does not exist, creating...');
+      }
+
+      // Register demo user if login failed
+      const { registerUser } = useAuth();
+      const registerSuccess = await registerUser({
+        name: 'डेमो उपयोगकर्ता',
+        email: 'demo@example.com',
+        password: 'demo123'
+      });
+
+      if (registerSuccess) {
         navigate('/chat');
       } else {
-        // Create demo user if doesn't exist
-        const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
-        const demoUser = {
-          id: 'demo',
-          name: 'डेमो उपयोगकर्ता',
-          email: 'demo@example.com',
-          password: 'demo123',
-          plan: 'premium' as const,
-          messagesUsed: 0,
-          messagesLimit: 5000,
-          createdAt: new Date().toISOString(),
-        };
-        users.push(demoUser);
-        localStorage.setItem('vaaniai-users', JSON.stringify(users));
-        
-        const loginSuccess = await login('demo@example.com', 'demo123');
-        if (loginSuccess) {
-          navigate('/chat');
-        }
+        setError('डेमो अकाउंट बनाने में समस्या हुई।');
       }
     } catch (err) {
       setError('डेमो लॉगिन में त्रुटि हुई।');

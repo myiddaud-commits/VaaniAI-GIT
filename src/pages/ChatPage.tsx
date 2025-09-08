@@ -382,11 +382,11 @@ const ChatPage: React.FC = () => {
         {/* Chat Header */}
         <div className="bg-white border-b border-gray-200 p-1 md:p-2 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 md:space-x-3">
+            <div className="flex items-center space-x-1 md:space-x-3">
               <button
                 id="menu-button"
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-1 md:p-2 hover:bg-gray-100 rounded-full transition-colors md:hidden"
+                className="p-0.5 md:p-2 hover:bg-gray-100 rounded-full transition-colors md:hidden"
               >
                 <Menu className="h-5 w-5 text-gray-600" />
               </button>
@@ -396,14 +396,14 @@ const ChatPage: React.FC = () => {
               >
                 {isSidebarOpen ? <ChevronLeft className="h-5 w-5 text-gray-600" /> : <Menu className="h-5 w-5 text-gray-600" />}
               </button>
-              <div className="flex items-center space-x-2 md:space-x-3">
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center shadow-sm">
-                  <Bot className="h-4 w-4 md:h-5 md:w-5 text-white" />
+              <div className="flex items-center space-x-1 md:space-x-3">
+                <div className="w-6 h-6 md:w-10 md:h-10 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center shadow-sm">
+                  <Bot className="h-3 w-3 md:h-5 md:w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-base md:text-lg font-semibold text-gray-800">VaaniAI असिस्टेंट</h1>
+                  <h1 className="text-sm md:text-lg font-semibold text-gray-800">VaaniAI असिस्टेंट</h1>
                   <p className="text-xs md:text-sm text-green-600 flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full mr-1 md:mr-2"></span>
                     ऑनलाइन
                   </p>
                 </div>
@@ -415,7 +415,7 @@ const ChatPage: React.FC = () => {
                   clearChat();
                 }
               }}
-              className="p-1 md:p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-0.5 md:p-2 hover:bg-gray-100 rounded-full transition-colors"
               title="वर्तमान चैट साफ़ करें"
             >
               <Trash2 className="h-5 w-5 text-gray-600" />

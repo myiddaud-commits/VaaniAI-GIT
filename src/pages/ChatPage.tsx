@@ -380,29 +380,29 @@ const ChatPage: React.FC = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Chat Header */}
-        <div className="bg-white border-b border-gray-200 p-2 shadow-sm">
+        <div className="bg-white border-b border-gray-200 p-1 md:p-2 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 md:space-x-3">
               <button
                 id="menu-button"
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors md:hidden"
+                className="p-1 md:p-2 hover:bg-gray-100 rounded-full transition-colors md:hidden"
               >
                 <Menu className="h-5 w-5 text-gray-600" />
               </button>
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="hidden md:flex p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="hidden md:flex p-1 md:p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 {isSidebarOpen ? <ChevronLeft className="h-5 w-5 text-gray-600" /> : <Menu className="h-5 w-5 text-gray-600" />}
               </button>
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center shadow-sm">
-                  <Bot className="h-5 w-5 text-white" />
+              <div className="flex items-center space-x-2 md:space-x-3">
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center shadow-sm">
+                  <Bot className="h-4 w-4 md:h-5 md:w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-800">VaaniAI असिस्टेंट</h1>
-                  <p className="text-sm text-green-600 flex items-center">
+                  <h1 className="text-base md:text-lg font-semibold text-gray-800">VaaniAI असिस्टेंट</h1>
+                  <p className="text-xs md:text-sm text-green-600 flex items-center">
                     <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                     ऑनलाइन
                   </p>
@@ -415,7 +415,7 @@ const ChatPage: React.FC = () => {
                   clearChat();
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-1 md:p-2 hover:bg-gray-100 rounded-full transition-colors"
               title="वर्तमान चैट साफ़ करें"
             >
               <Trash2 className="h-5 w-5 text-gray-600" />
@@ -424,12 +424,12 @@ const ChatPage: React.FC = () => {
         </div>
 
         {/* Usage Indicator */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2">
+        <div className="bg-white border-b border-gray-200 px-2 py-1 md:px-4 md:py-2">
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-gray-600 font-medium">
               संदेश: {messagesUsed}/{messagesLimit}
             </span>
-            <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600 capitalize">
+            <span className="text-xs bg-gray-100 px-1 py-0.5 md:px-2 md:py-1 rounded-full text-gray-600 capitalize">
               {isGuest ? 'गेस्ट' : user?.plan} प्लान
             </span>
           </div>

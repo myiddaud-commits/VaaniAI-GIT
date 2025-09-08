@@ -67,14 +67,14 @@ const Header: React.FC = () => {
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsProfileOpen(false)}
                     >
-                      Profile Settings
+                      प्रोफाइल सेटिंग्स
                     </Link>
                     <Link
                       to="/plans"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsProfileOpen(false)}
                     >
-                      Upgrade Plan
+                      प्लान अपग्रेड करें
                     </Link>
                     <button
                       onClick={() => {
@@ -94,14 +94,14 @@ const Header: React.FC = () => {
                       }}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                     >
-                      📥 Download All Chats
+                      📥 सभी चैट डाउनलोड करें
                     </button>
                     <button
                       onClick={handleLogout}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                     >
                       <LogOut className="h-4 w-4 mr-2" />
-                      Logout
+                      लॉगआउट
                     </button>
                   </div>
                 )}
@@ -184,14 +184,14 @@ const Header: React.FC = () => {
                     className="block px-3 py-2 text-white hover:text-whatsapp-light"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    PROFILE SETTINGS
+                    प्रोफाइल सेटिंग्स
                   </Link>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-3 py-2 text-white hover:text-whatsapp-light flex items-center"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
-                    LOGOUT
+                    लॉगआउट
                   </button>
                 </div>
               ) : (

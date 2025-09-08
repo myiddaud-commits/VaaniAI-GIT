@@ -497,16 +497,12 @@ const AdminDashboard: React.FC = () => {
         // Insert new config
         const { error } = await supabase
           .from('api_configs')
-          setOpenRouterConfig({
+          .insert({
             openrouter_key: openRouterConfig.apiKey,
             selected_model: openRouterConfig.selectedModel,
-          setApiConfig({
-            openaiKey: data.openai_key || '',
-            geminiKey: data.gemini_key || '',
-            claudeKey: data.claude_key || '',
-            rateLimit: data.rate_limit,
-            maxTokens: data.max_tokens,
-            temperature: data.temperature
+            rate_limit: apiConfig.rateLimit,
+            max_tokens: apiConfig.maxTokens,
+            temperature: apiConfig.temperature
           });
 
         if (error) {

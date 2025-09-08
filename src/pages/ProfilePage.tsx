@@ -168,6 +168,8 @@ const ProfilePage: React.FC = () => {
           theme: data.theme,
           notifications: data.notifications,
           email_updates: data.emailUpdates
+        }, {
+          onConflict: 'user_id'
         });
 
       if (error) {

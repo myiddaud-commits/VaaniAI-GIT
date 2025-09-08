@@ -241,6 +241,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     incrementMessageCount,
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-whatsapp-primary"></div>
+      </div>
+    );
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

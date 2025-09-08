@@ -7,6 +7,7 @@ interface AIResponse {
 
 class AIService {
   private apiKey: string = '';
+  private selectedModel: string = 'openrouter/sonoma-dusk-alpha';
   private baseUrl: string = 'https://openrouter.ai/api/v1';
 
   constructor() {
@@ -23,20 +24,28 @@ class AIService {
         .maybeSingle();
 
       if (!error && data) {
-        this.apiKey = data.openai_key || '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';
+        this.apiKey = data.openrouter_key || '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';
+        this.selectedModel = data.selected_model || 'openrouter/sonoma-dusk-alpha';
       } else {
         // Fallback to default API key
         this.apiKey = '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';
+        this.selectedModel = 'openrouter/sonoma-dusk-alpha';
       }
     } catch (error) {
       console.error('Error loading API config from Supabase:', error);
       this.apiKey = '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';
+      this.selectedModel = 'openrouter/sonoma-dusk-alpha';
     }
   }
 
   // Method to update API key dynamically
   public updateApiKey(newApiKey: string) {
     this.apiKey = newApiKey;
+  }
+
+  // Method to update selected model
+  public updateSelectedModel(newModel: string) {
+    this.selectedModel = newModel;
   }
 
   // Method to get current API configuration from Supabase
@@ -97,7 +106,7 @@ Examples:
           'X-Title': 'VaaniAI Hindi Chatbot'
         },
         body: JSON.stringify({
-          model: 'openrouter/sonoma-dusk-alpha',
+          model: this.selectedModel,
           messages: [
             {
               role: 'system',

@@ -454,12 +454,17 @@ const AdminDashboard: React.FC = () => {
   };
 
   const [apiConfig, setApiConfig] = useState<ApiConfig>({
-    openaiKey: '',
-    geminiKey: '',
-    claudeKey: '',
+    openaiKey: '', // Keep for backward compatibility
+    geminiKey: '', // Keep for backward compatibility  
+    claudeKey: '', // Keep for backward compatibility
     rateLimit: 100,
     maxTokens: 4000,
     temperature: 0.7
+  });
+
+  const [openRouterConfig, setOpenRouterConfig] = useState({
+    apiKey: '',
+    selectedModel: 'openrouter/sonoma-dusk-alpha'
   });
 
   // Save API config to Supabase
@@ -477,9 +482,8 @@ const AdminDashboard: React.FC = () => {
         const { error } = await supabase
           .from('api_configs')
           .update({
-            openai_key: apiConfig.openaiKey,
-            gemini_key: apiConfig.geminiKey,
-            claude_key: apiConfig.claudeKey,
+            openrouter_key: openRouterConfig.apiKey,
+            selected_model: openRouterConfig.selectedModel,
             rate_limit: apiConfig.rateLimit,
             max_tokens: apiConfig.maxTokens,
             temperature: apiConfig.temperature
@@ -493,13 +497,16 @@ const AdminDashboard: React.FC = () => {
         // Insert new config
         const { error } = await supabase
           .from('api_configs')
-          .insert({
-            openai_key: apiConfig.openaiKey,
-            gemini_key: apiConfig.geminiKey,
-            claude_key: apiConfig.claudeKey,
-            rate_limit: apiConfig.rateLimit,
-            max_tokens: apiConfig.maxTokens,
-            temperature: apiConfig.temperature
+          setOpenRouterConfig({
+            openrouter_key: openRouterConfig.apiKey,
+            selected_model: openRouterConfig.selectedModel,
+          setApiConfig({
+            openaiKey: data.openai_key || '',
+            geminiKey: data.gemini_key || '',
+            claudeKey: data.claude_key || '',
+            rateLimit: data.rate_limit,
+            maxTokens: data.max_tokens,
+            temperature: data.temperature
           });
 
         if (error) {
@@ -508,9 +515,9 @@ const AdminDashboard: React.FC = () => {
       }
 
       // Update AI service with new API key
-      if (apiConfig.openaiKey) {
+      if (openRouterConfig.apiKey) {
         const { aiService } = await import('../services/aiService');
-        aiService.updateApiKey(apiConfig.openaiKey);
+        aiService.updateApiKey(openRouterConfig.apiKey);
       }
 
       alert('API configuration saved successfully to Supabase!');
@@ -1015,17 +1022,17 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">API Keys</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">OpenRouter Configuration</h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">OpenAI API Key</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">OpenRouter API Key</label>
             <div className="relative">
               <input
                 type={showApiKeys ? 'text' : 'password'}
-                value={apiConfig.openaiKey}
-                onChange={(e) => setApiConfig({ ...apiConfig, openaiKey: e.target.value })}
+                value={openRouterConfig.apiKey}
+                onChange={(e) => setOpenRouterConfig({ ...openRouterConfig, apiKey: e.target.value })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="sk-..."
+                placeholder="sk-or-v1-..."
               />
               <button
                 type="button"
@@ -1035,28 +1042,28 @@ const AdminDashboard: React.FC = () => {
                 {showApiKeys ? <EyeOff className="h-4 w-4 text-gray-400" /> : <Eye className="h-4 w-4 text-gray-400" />}
               </button>
             </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Get your API key from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">OpenRouter</a>
+            </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Gemini API Key</label>
-            <input
-              type={showApiKeys ? 'text' : 'password'}
-              value={apiConfig.geminiKey}
-              onChange={(e) => setApiConfig({ ...apiConfig, geminiKey: e.target.value })}
+            <label className="block text-sm font-medium text-gray-700 mb-1">Selected Model</label>
+            <select
+              value={openRouterConfig.selectedModel}
+              onChange={(e) => setOpenRouterConfig({ ...openRouterConfig, selectedModel: e.target.value })}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="AIza..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Claude API Key</label>
-            <input
-              type={showApiKeys ? 'text' : 'password'}
-              value={apiConfig.claudeKey}
-              onChange={(e) => setApiConfig({ ...apiConfig, claudeKey: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="sk-ant..."
-            />
+            >
+              <option value="openrouter/sonoma-dusk-alpha">Sonoma Dusk Alpha (Recommended)</option>
+              <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
+              <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
+              <option value="openai/gpt-4">GPT-4</option>
+              <option value="google/gemini-pro">Gemini Pro</option>
+              <option value="meta-llama/llama-2-70b-chat">Llama 2 70B</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Choose the AI model for chat responses. Sonoma Dusk Alpha is optimized for Hindi conversations.
+            </p>
           </div>
         </div>
       </div>
@@ -1107,10 +1114,25 @@ const AdminDashboard: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">API Status</h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">OpenAI Status</span>
-            <span className="flex items-center text-sm text-green-600">
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Active
+            <span className="text-sm text-gray-600">OpenRouter Status</span>
+            <span className={`flex items-center text-sm ${openRouterConfig.apiKey ? 'text-green-600' : 'text-red-600'}`}>
+              {openRouterConfig.apiKey ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Active
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Not Configured
+                </>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">Current Model</span>
+            <span className="text-sm text-gray-500">
+              {openRouterConfig.selectedModel}
             </span>
           </div>
           <div className="flex items-center justify-between">

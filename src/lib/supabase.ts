@@ -108,6 +108,8 @@ export interface Database {
           openai_key: string | null;
           gemini_key: string | null;
           claude_key: string | null;
+          openrouter_key: string | null;
+          selected_model: string;
           rate_limit: number;
           max_tokens: number;
           temperature: number;
@@ -117,6 +119,8 @@ export interface Database {
           openai_key?: string;
           gemini_key?: string;
           claude_key?: string;
+          openrouter_key?: string;
+          selected_model?: string;
           rate_limit?: number;
           max_tokens?: number;
           temperature?: number;
@@ -125,6 +129,8 @@ export interface Database {
           openai_key?: string;
           gemini_key?: string;
           claude_key?: string;
+          openrouter_key?: string;
+          selected_model?: string;
           rate_limit?: number;
           max_tokens?: number;
           temperature?: number;

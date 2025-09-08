@@ -846,125 +846,127 @@ const AdminDashboard: React.FC = () => {
     </div>
   );
 
-  const renderMessages = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Message Management</h1>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => {
-              const dataStr = JSON.stringify(allMessages, null, 2);
-              const dataBlob = new Blob([dataStr], { type: 'application/json' });
-              const url = URL.createObjectURL(dataBlob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `vaaniai-messages-${new Date().toISOString().split('T')[0]}.json`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(url);
-            }}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            <Download className="h-4 w-4" />
-            <span>Export</span>
-          </button>
-        </div>
-      </div>
+  const renderMessages = () => {
+    const messages = allMessages
+      .filter(message => {
+        const matchesSearch = message.text.toLowerCase().includes(messageSearchTerm.toLowerCase()) ||
+                             message.sessionTitle.toLowerCase().includes(messageSearchTerm.toLowerCase());
+        const matchesSender = messageFilterSender === 'all' || message.sender === messageFilterSender;
+        const matchesDate = !messageFilterDate || 
+                         new Date(message.timestamp).toDateString() === new Date(messageFilterDate).toDateString();
+        return matchesSearch && matchesSender && matchesDate;
+      })
+      .slice(0, 100);
 
-      {/* Message Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Messages</p>
-              <p className="text-xl font-bold text-gray-900">{messageStats.totalMessages}</p>
-            </div>
-            <MessageSquare className="h-6 w-6 text-blue-600" />
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Message Management</h1>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => {
+                const dataStr = JSON.stringify(messages, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `vaaniai-messages-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <Download className="h-4 w-4" />
+              <span>Export</span>
+            </button>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">User Messages</p>
-              <p className="text-xl font-bold text-gray-900">{messageStats.userMessages}</p>
-            </div>
-            <User className="h-6 w-6 text-green-600" />
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Bot Messages</p>
-              <p className="text-xl font-bold text-gray-900">{messageStats.botMessages}</p>
-            </div>
-            <Bot className="h-6 w-6 text-purple-600" />
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Today</p>
-              <p className="text-xl font-bold text-gray-900">{messageStats.todayMessages}</p>
-            </div>
-            <Calendar className="h-6 w-6 text-yellow-600" />
-          </div>
-        </div>
-      </div>
 
-      {/* Messages List */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        {/* Message Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Messages</p>
+                <p className="text-xl font-bold text-gray-900">{messageStats.totalMessages}</p>
+              </div>
+              <MessageSquare className="h-6 w-6 text-blue-600" />
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">User Messages</p>
+                <p className="text-xl font-bold text-gray-900">{messageStats.userMessages}</p>
+              </div>
+              <User className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Bot Messages</p>
+                <p className="text-xl font-bold text-gray-900">{messageStats.botMessages}</p>
+              </div>
+              <Bot className="h-6 w-6 text-purple-600" />
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Today</p>
+                <p className="text-xl font-bold text-gray-900">{messageStats.todayMessages}</p>
+              </div>
+              <Calendar className="h-6 w-6 text-yellow-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Messages List */}
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="p-4 border-b border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={messageSearchTerm}
+                    onChange={(e) => setMessageSearchTerm(e.target.value)}
+                    placeholder="Search messages..."
+                    className="pl-10 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sender</label>
+                <select
+                  value={messageFilterSender}
+                  onChange={(e) => setMessageFilterSender(e.target.value as any)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Senders</option>
+                  <option value="user">User</option>
+                  <option value="bot">Bot</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <input
-                  type="text"
-                  value={messageSearchTerm}
-                  onChange={(e) => setMessageSearchTerm(e.target.value)}
-                  placeholder="Search messages..."
-                  className="pl-10 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="date"
+                  value={messageFilterDate}
+                  onChange={(e) => setMessageFilterDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sender</label>
-              <select
-                value={messageFilterSender}
-                onChange={(e) => setMessageFilterSender(e.target.value as any)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Senders</option>
-                <option value="user">User</option>
-                <option value="bot">Bot</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input
-                type="date"
-                value={messageFilterDate}
-                onChange={(e) => setMessageFilterDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
           </div>
-        </div>
 
-        <div className="max-h-96 overflow-y-auto">
-          {allMessages
-            .filter(message => {
-              const matchesSearch = message.text.toLowerCase().includes(messageSearchTerm.toLowerCase()) ||
-                                 message.sessionTitle.toLowerCase().includes(messageSearchTerm.toLowerCase());
-              const matchesSender = messageFilterSender === 'all' || message.sender === messageFilterSender;
-              const matchesDate = !messageFilterDate || 
-                               new Date(message.timestamp).toDateString() === new Date(messageFilterDate).toDateString();
-              return matchesSearch && matchesSender && matchesDate;
-            })
-            .slice(0, 100)
-            .map((message) => (
+          <div className="max-h-96 overflow-y-auto">
+            {messages.map((message) => (
               <div key={message.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -985,18 +987,19 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             ))}
-        </div>
-
-        {allMessages.length === 0 && (
-          <div className="text-center py-12">
-            <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No messages found</h3>
-            <p className="mt-1 text-sm text-gray-500">No messages have been sent yet.</p>
           </div>
-        )}
+
+          {allMessages.length === 0 && (
+            <div className="text-center py-12">
+              <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No messages found</h3>
+              <p className="mt-1 text-sm text-gray-500">No messages have been sent yet.</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderApiConfig = () => (
     <div className="space-y-6">

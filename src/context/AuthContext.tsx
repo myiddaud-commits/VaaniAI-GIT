@@ -80,19 +80,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('AuthContext: Starting login for', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Login error:', error.message);
+        console.error('AuthContext: Login error:', error.message);
         return false;
       }
 
+      console.log('AuthContext: Login successful', !!data.user);
       return !!data.user;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('AuthContext: Login catch error:', error);
       return false;
     }
   };

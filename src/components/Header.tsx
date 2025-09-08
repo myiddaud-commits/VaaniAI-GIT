@@ -18,7 +18,7 @@ const Header: React.FC = () => {
   return (
     <header className="bg-whatsapp-primary text-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-12 md:h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <MessageCircle className="h-8 w-8" />

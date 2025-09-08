@@ -11,6 +11,7 @@ import LoginPage from './pages/LoginPage';
 import PlansPage from './pages/PlansPage';
 import ChatPage from './pages/ChatPage';
 import AboutPage from './pages/AboutPage';
+import ProfilePage from './pages/ProfilePage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -30,6 +31,7 @@ const AppContent: React.FC = () => {
           <Route path="/plans" element={<PlansPage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
         </Routes>

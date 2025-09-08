@@ -63,6 +63,13 @@ const Header: React.FC = () => {
                       </div>
                     </div>
                     <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      Profile Settings
+                    </Link>
+                    <Link
                       to="/plans"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsProfileOpen(false)}
@@ -172,6 +179,13 @@ const Header: React.FC = () => {
                       Plan: <span className="font-medium capitalize">{user.plan}</span>
                     </div>
                   </div>
+                  <Link
+                    to="/profile"
+                    className="block px-3 py-2 text-white hover:text-whatsapp-light"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    PROFILE SETTINGS
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-3 py-2 text-white hover:text-whatsapp-light flex items-center"

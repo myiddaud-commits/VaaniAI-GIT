@@ -8,7 +8,7 @@ class AIService {
   private baseUrl: string;
 
   constructor() {
-    this.apiKey = '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';
+    this.apiKey = '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';
     this.baseUrl = 'https://openrouter.ai/api/v1';
   }
 

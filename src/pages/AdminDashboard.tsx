@@ -80,7 +80,7 @@ const AdminDashboard: React.FC = () => {
       .from('api_configs')
       .select('*')
       .limit(1)
-      .single()
+      .maybeSingle()
       .then(({ data, error }) => {
         if (!error && data) {
           setApiConfig({
@@ -470,7 +470,7 @@ const AdminDashboard: React.FC = () => {
         .from('api_configs')
         .select('id')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (existingConfig) {
         // Update existing config

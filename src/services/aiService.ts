@@ -20,7 +20,7 @@ class AIService {
         .from('api_configs')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         this.apiKey = data.openai_key || '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';
@@ -46,7 +46,7 @@ class AIService {
         .from('api_configs')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error getting API config:', error);

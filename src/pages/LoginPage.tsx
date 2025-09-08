@@ -44,6 +44,7 @@ const LoginPage: React.FC = () => {
   const handleDemoLogin = async () => {
     setIsLoading(true);
     setError('');
+    const { register } = useAuth();
 
     try {
       // First try to login with demo credentials
@@ -59,12 +60,7 @@ const LoginPage: React.FC = () => {
       }
 
       // Register demo user if login failed
-      const { registerUser } = useAuth();
-      const registerSuccess = await registerUser({
-        name: 'डेमो उपयोगकर्ता',
-        email: 'demo@example.com',
-        password: 'demo123'
-      });
+      const registerSuccess = await register('डेमो उपयोगकर्ता', 'demo@example.com', 'demo123');
 
       if (registerSuccess) {
         navigate('/chat');

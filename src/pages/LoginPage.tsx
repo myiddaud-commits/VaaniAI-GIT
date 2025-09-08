@@ -14,7 +14,7 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
   
   const {
@@ -44,7 +44,6 @@ const LoginPage: React.FC = () => {
   const handleDemoLogin = async () => {
     setIsLoading(true);
     setError('');
-    const { register } = useAuth();
 
     try {
       // First try to login with demo credentials

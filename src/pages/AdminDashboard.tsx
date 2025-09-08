@@ -96,11 +96,15 @@ const AdminDashboard: React.FC = () => {
             apiKey: config.openrouter_key || '',
             selectedModel: config.selected_model || 'openrouter/sonoma-dusk-alpha'
           });
+          console.log('API config loaded successfully:', {
+            hasOpenRouterKey: !!(config.openrouter_key),
+            selectedModel: config.selected_model
+          });
         } else {
-          console.log('No API config found, using defaults');
+          console.log('No API config found, using defaults. Error:', error?.message || 'No data');
         }
       })
-      .catch(error => console.error('Error loading API config:', error));
+      .catch(error => console.error('Error loading API config:', error instanceof Error ? error.message : error));
   };
 
   // Check admin authentication
@@ -535,7 +539,10 @@ const AdminDashboard: React.FC = () => {
       loadApiConfig();
     } catch (error) {
       console.error('Error saving API config:', error);
-      alert(`Error saving API configuration: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : 
+                          typeof error === 'object' && error !== null ? JSON.stringify(error) : 
+                          String(error);
+      alert(`Error saving API configuration: ${errorMessage}`);
     }
   };
 

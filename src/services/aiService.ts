@@ -24,7 +24,7 @@ class AIService {
         .limit(1);
 
       if (!error && data && data.length > 0) {
-        const config = data[0];
+        console.error('Error loading API config from Supabase:', error.message || error);
         this.apiKey = config.openrouter_key || '';
         this.selectedModel = config.selected_model || 'openrouter/sonoma-dusk-alpha';
         console.log('Loaded API config from Supabase:', { 
@@ -38,7 +38,7 @@ class AIService {
         this.selectedModel = 'openrouter/sonoma-dusk-alpha';
       }
     } catch (error) {
-      console.error('Error loading API config from Supabase:', error);
+      console.error('Error loading API config from Supabase:', error instanceof Error ? error.message : error);
       this.apiKey = '';
       this.selectedModel = 'openrouter/sonoma-dusk-alpha';
     }

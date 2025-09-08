@@ -68,6 +68,8 @@ const LoginPage: React.FC = () => {
         const loginSuccess = await login('demo@example.com', 'demo123');
         if (loginSuccess) {
           navigate('/chat');
+        } else {
+          setError('डेमो लॉगिन में त्रुटि हुई।');
         }
       }
     } catch (err) {

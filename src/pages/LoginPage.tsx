@@ -14,11 +14,11 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   
   const {
-    register: formRegister,
+    register,
     handleSubmit,
     formState: { errors }
   } = useForm<LoginForm>();
@@ -46,25 +46,29 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      // First try to login with demo credentials
-      try {
-        const success = await login('demo@example.com', 'demo123');
-        if (success) {
-          navigate('/chat');
-          return;
-        }
-      } catch (loginError) {
-        // If login fails, the demo user doesn't exist, so we need to register them
-        console.log('Demo user does not exist, creating...');
-      }
-
-      // Register demo user if login failed
-      const registerSuccess = await register('डेमो उपयोगकर्ता', 'demo@example.com', 'demo123');
-
-      if (registerSuccess) {
+      const success = await login('demo@example.com', 'demo123');
+      if (success) {
         navigate('/chat');
       } else {
-        setError('डेमो अकाउंट बनाने में समस्या हुई।');
+        // Create demo user if doesn't exist
+        const users = JSON.parse(localStorage.getItem('vaaniai-users') || '[]');
+        const demoUser = {
+          id: 'demo',
+          name: 'डेमो उपयोगकर्ता',
+          email: 'demo@example.com',
+          password: 'demo123',
+          plan: 'premium' as const,
+          messagesUsed: 0,
+          messagesLimit: 5000,
+          createdAt: new Date().toISOString(),
+        };
+        users.push(demoUser);
+        localStorage.setItem('vaaniai-users', JSON.stringify(users));
+        
+        const loginSuccess = await login('demo@example.com', 'demo123');
+        if (loginSuccess) {
+          navigate('/chat');
+        }
       }
     } catch (err) {
       setError('डेमो लॉगिन में त्रुटि हुई।');
@@ -108,7 +112,7 @@ const LoginPage: React.FC = () => {
               </label>
               <div className="mt-1">
                 <input
-                  {...formRegister('email', {
+                  {...register('email', {
                     required: 'ईमेल आवश्यक है',
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -131,7 +135,7 @@ const LoginPage: React.FC = () => {
               </label>
               <div className="mt-1 relative">
                 <input
-                  {...formRegister('password', {
+                  {...register('password', {
                     required: 'पासवर्ड आवश्यक है'
                   })}
                   type={showPassword ? 'text' : 'password'}

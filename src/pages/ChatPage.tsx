@@ -424,7 +424,7 @@ const ChatPage: React.FC = () => {
         </div>
 
         {/* Usage Indicator */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="bg-white border-b border-gray-200 px-4 py-2">
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-gray-600 font-medium">
               संदेश: {messagesUsed}/{messagesLimit}

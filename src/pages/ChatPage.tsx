@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, User, Bot, AlertCircle, Plus, MessageSquare, Edit2, X, Menu, ChevronLeft, MoreVertical, Eye, EyeOff } from 'lucide-react';
+import { Send, Trash2, User, Bot, AlertCircle, Plus, MessageSquare, Edit2, X, Menu, ChevronLeft, MoreVertical, Eye, EyeOff, Image, Paperclip } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { Link } from 'react-router-dom';
@@ -11,8 +11,11 @@ const ChatPage: React.FC = () => {
   const [editingTitle, setEditingTitle] = useState('');
   const [showUsageIndicator, setShowUsageIndicator] = useState(false);
   const [hasShownInitialIndicator, setHasShownInitialIndicator] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const { 
     messages, 
@@ -90,17 +93,61 @@ const ChatPage: React.FC = () => {
     };
   }, [isSidebarOpen]);
 
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('फाइल का साइज़ 5MB से कम होना चाहिए।');
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        alert('कृपया केवल इमेज फाइल अपलोड करें।');
+        return;
+      }
+
+      setSelectedImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeSelectedImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() && !selectedImage) return;
     if (!user) {
       window.location.href = '/login';
       return;
     }
 
-    const message = inputMessage.trim();
+    let messageContent = inputMessage.trim();
+    
+    // If there's an image, add it to the message
+    if (selectedImage && imagePreview) {
+      messageContent = `${messageContent}\n\n[📷 इमेज भेजी गई: ${selectedImage.name}]`.trim();
+    }
+
     setInputMessage('');
-    await sendMessage(message);
+    removeSelectedImage();
+    
+    if (messageContent) {
+      await sendMessage(messageContent);
+    }
     
     // Close sidebar on mobile after sending message
     if (window.innerWidth < 768) {
@@ -439,6 +486,20 @@ const ChatPage: React.FC = () => {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-base leading-relaxed break-words">{message.text}</p>
+                    
+                    {/* Show image if message contains image indicator */}
+                    {message.text.includes('[📷 इमेज भेजी गई:') && (
+                      <div className="mt-2 p-2 bg-gray-100 rounded-lg border border-gray-200">
+                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                          <Image className="h-4 w-4" />
+                          <span>इमेज भेजी गई</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          नोट: इमेज प्रोसेसिंग फीचर जल्द ही आएगा
+                        </p>
+                      </div>
+                    )}
+                    
                     <p className={`text-xs mt-2 ${
                       message.sender === 'user' ? 'text-whatsapp-light' : 'text-gray-500'
                     }`}>
@@ -476,19 +537,74 @@ const ChatPage: React.FC = () => {
 
         {/* Message Input */}
         <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto bg-white border-t border-gray-200 p-4 pb-safe z-10 md:z-auto">
+          {/* Image Preview */}
+          {imagePreview && (
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-start space-x-3">
+                <div className="relative">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-300"
+                  />
+                  <button
+                    onClick={removeSelectedImage}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {selectedImage?.name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {selectedImage && (selectedImage.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    📷 इमेज के साथ मैसेज भेजने के लिए तैयार
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <form onSubmit={handleSendMessage} className="flex space-x-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="यहाँ अपना संदेश टाइप करें..."
-              className="flex-1 border border-gray-300 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:border-transparent text-sm placeholder-gray-500 bg-gray-50 min-h-[44px] shadow-sm"
-              disabled={isAtLimit}
-            />
+            <div className="flex-1 relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="यहाँ अपना संदेश टाइप करें..."
+                className="w-full border border-gray-300 rounded-full px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:border-transparent text-sm placeholder-gray-500 bg-gray-50 min-h-[44px] shadow-sm"
+                disabled={isAtLimit}
+              />
+              
+              {/* Image Upload Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isAtLimit}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-500 hover:text-whatsapp-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="इमेज अपलोड करें"
+              >
+                <Paperclip className="h-5 w-5" />
+              </button>
+              
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+            </div>
+            
             <button
               type="submit"
-              disabled={!inputMessage.trim() || isTyping || isAtLimit}
+              disabled={(!inputMessage.trim() && !selectedImage) || isTyping || isAtLimit}
               className="bg-whatsapp-primary text-white p-3 rounded-full hover:bg-whatsapp-dark focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <Send className="h-5 w-5" />
@@ -496,7 +612,7 @@ const ChatPage: React.FC = () => {
           </form>
           {isAtLimit && (
             <p className="text-xs text-red-600 mt-2 text-center">
-              संदेश भेजने के लिए कृपया अपना प्लान अपग्रेड करें
+              संदेश या इमेज भेजने के लिए कृपया अपना प्लान अपग्रेड करें
             </p>
           )}
         </div>

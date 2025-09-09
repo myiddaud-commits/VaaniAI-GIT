@@ -438,7 +438,7 @@ const ChatPage: React.FC = () => {
                     <Bot className="h-4 w-4 text-whatsapp-primary flex-shrink-0 mt-0.5" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm leading-relaxed break-words">{message.text}</p>
+                    <p className="text-base leading-relaxed break-words">{message.text}</p>
                     <p className={`text-xs mt-2 ${
                       message.sender === 'user' ? 'text-whatsapp-light' : 'text-gray-500'
                     }`}>
@@ -459,7 +459,7 @@ const ChatPage: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <Bot className="h-4 w-4 text-whatsapp-primary" />
                   <div className="flex-1">
-                    <p className="text-sm text-gray-600">टाइप कर रहे हैं...</p>
+                    <p className="text-base text-gray-600">टाइप कर रहे हैं...</p>
                     <div className="flex space-x-1 mt-2">
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>

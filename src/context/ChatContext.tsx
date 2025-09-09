@@ -182,7 +182,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
 
   // Send message
-  const sendMessage = async (text: string, imageFile?: File): Promise<void> => {
+  const sendMessage = async (text: string, imageFile?: File, imageUrl?: string): Promise<void> => {
     if (!user || !currentSessionId) {
       return;
     }
@@ -205,23 +205,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Handle image if provided
     if (imageFile) {
       try {
-        // Convert image to base64
-        const reader = new FileReader();
-        imageBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => {
-            const result = reader.result as string;
-            // Remove data URL prefix to get just base64
-            const base64 = result.split(',')[1];
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
+        // Extract base64 from the uploaded image URL
+        imageBase64 = imageUrl.split(',')[1];
         
         // Update message content to indicate image was sent
-        messageContent = text ? 
-          `${text}\n\n[📷 इमेज भेजी गई: ${imageFile.name}]` : 
-          `[📷 इमेज भेजी गई: ${imageFile.name}]`;
+        messageContent = text || 'इमेज भेजी गई';
       } catch (error) {
         console.error('Error processing image:', error);
         const errorMessage: Message = {
@@ -241,6 +229,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       text: messageContent,
       sender: 'user',
       timestamp: new Date().toISOString(),
+      imageUrl: imageUrl || undefined,
     };
     setMessages(prev => [...prev, tempUserMessage]);
 
@@ -252,7 +241,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           session_id: currentSessionId,
           user_id: user.id,
           content: messageContent,
-          sender: 'user'
+          sender: 'user',
+          image_url: imageUrl || null
         })
         .select()
         .single();
@@ -265,7 +255,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Update the temporary message with real data
       setMessages(prev => prev.map(msg => 
         msg.id === tempUserMessage.id 
-          ? { ...msg, id: savedUserMessage.id }
+          ? { ...msg, id: savedUserMessage.id, imageUrl: savedUserMessage.image_url }
           : msg
       ));
 
@@ -273,7 +263,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       if (messages.length === 0) {
         const currentSession = sessions.find(s => s.id === currentSessionId);
         if (currentSession && currentSession.title === 'नई चैट') {
-          const title = (text || 'इमेज चैट').length > 30 ? (text || 'इमेज चैट').substring(0, 30) + '...' : (text || 'इमेज चैट');
+          const title = imageFile ? 
+            (text ? `${text.substring(0, 20)}... (इमेज)` : 'इमेज चैट') :
+            (text.length > 30 ? text.substring(0, 30) + '...' : text);
           await updateSessionTitle(currentSessionId, title);
         }
       }

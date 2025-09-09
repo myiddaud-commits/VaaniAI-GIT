@@ -13,6 +13,8 @@ const ChatPage: React.FC = () => {
   const [hasShownInitialIndicator, setHasShownInitialIndicator] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,9 +121,49 @@ const ChatPage: React.FC = () => {
     }
   };
 
+  const simulateUpload = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      setIsUploading(true);
+      setUploadProgress(0);
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        
+        // Simulate upload progress
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += Math.random() * 30;
+          if (progress >= 100) {
+            progress = 100;
+            setUploadProgress(100);
+            clearInterval(interval);
+            
+            setTimeout(() => {
+              setIsUploading(false);
+              setUploadProgress(0);
+              resolve(base64);
+            }, 500);
+          } else {
+            setUploadProgress(Math.round(progress));
+          }
+        }, 200);
+      };
+      
+      reader.onerror = () => {
+        setIsUploading(false);
+        setUploadProgress(0);
+        reject(new Error('फाइल पढ़ने में त्रुटि हुई'));
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  };
   const removeSelectedImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
+    setUploadProgress(0);
+    setIsUploading(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -129,20 +171,30 @@ const ChatPage: React.FC = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() && !selectedImage) return;
+    if ((!inputMessage.trim() && !selectedImage) || isUploading) return;
     if (!user) {
       window.location.href = '/login';
       return;
     }
 
     const messageText = inputMessage.trim();
-    const imageFile = selectedImage;
+    let imageFile = selectedImage;
+    let uploadedImageUrl = '';
 
+    // If there's an image, upload it first
+    if (imageFile) {
+      try {
+        uploadedImageUrl = await simulateUpload(imageFile);
+      } catch (error) {
+        alert('इमेज अपलोड करने में त्रुटि हुई। कृपया पुनः प्रयास करें।');
+        return;
+      }
+    }
     setInputMessage('');
     removeSelectedImage();
     
     // Send message with optional image
-    await sendMessage(messageText, imageFile);
+    await sendMessage(messageText, imageFile, uploadedImageUrl);
     
     // Close sidebar on mobile after sending message
     if (window.innerWidth < 768) {
@@ -480,20 +532,23 @@ const ChatPage: React.FC = () => {
                     <Bot className="h-4 w-4 text-whatsapp-primary flex-shrink-0 mt-0.5" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-base leading-relaxed break-words">{message.text}</p>
-                    
-                    {/* Show image if message contains image indicator */}
-                    {message.text.includes('[📷 इमेज भेजी गई:') && (
-                      <div className="mt-2 p-2 bg-gray-100 rounded-lg border border-gray-200">
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Image className="h-4 w-4" />
-                          <span>इमेज भेजी गई</span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          नोट: इमेज प्रोसेसिंग फीचर जल्द ही आएगा
-                        </p>
+                    {/* Display image if present */}
+                    {message.imageUrl && (
+                      <div className="mb-3">
+                        <img 
+                          src={message.imageUrl} 
+                          alt="Shared image" 
+                          className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                          style={{ maxHeight: '200px', objectFit: 'cover' }}
+                          onClick={() => {
+                            // Open image in new tab for full view
+                            window.open(message.imageUrl, '_blank');
+                          }}
+                        />
                       </div>
                     )}
+                    
+                    <p className="text-base leading-relaxed break-words">{message.text}</p>
                     
                     <p className={`text-xs mt-2 ${
                       message.sender === 'user' ? 'text-whatsapp-light' : 'text-gray-500'
@@ -533,7 +588,7 @@ const ChatPage: React.FC = () => {
         {/* Message Input */}
         <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto bg-white border-t border-gray-200 p-4 pb-safe z-10 md:z-auto">
           {/* Image Preview */}
-          {imagePreview && (
+          {imagePreview && !isUploading && (
             <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-start space-x-3">
                 <div className="relative">
@@ -558,6 +613,38 @@ const ChatPage: React.FC = () => {
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
                     📷 इमेज के साथ मैसेज भेजने के लिए तैयार
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Upload Progress */}
+          {isUploading && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <img 
+                    src={imagePreview || ''} 
+                    alt="Uploading" 
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-300 opacity-50"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">
+                    इमेज अपलोड हो रही है...
+                  </p>
+                  <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {uploadProgress}% पूर्ण
                   </p>
                 </div>
               </div>
@@ -599,15 +686,24 @@ const ChatPage: React.FC = () => {
             
             <button
               type="submit"
-              disabled={(!inputMessage.trim() && !selectedImage) || isTyping || isAtLimit}
+              disabled={(!inputMessage.trim() && !selectedImage) || isTyping || isAtLimit || isUploading}
               className="bg-whatsapp-primary text-white p-3 rounded-full hover:bg-whatsapp-dark focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
-              <Send className="h-5 w-5" />
+              {isUploading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
             </button>
           </form>
           {isAtLimit && (
             <p className="text-xs text-red-600 mt-2 text-center">
               संदेश या इमेज भेजने के लिए कृपया अपना प्लान अपग्रेड करें
+            </p>
+          )}
+          {isUploading && (
+            <p className="text-xs text-blue-600 mt-2 text-center">
+              कृपया इमेज अपलोड होने तक प्रतीक्षा करें...
             </p>
           )}
         </div>

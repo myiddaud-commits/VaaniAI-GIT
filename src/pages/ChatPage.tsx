@@ -9,7 +9,8 @@ const ChatPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
-  const [showUsageIndicator, setShowUsageIndicator] = useState(true);
+  const [showUsageIndicator, setShowUsageIndicator] = useState(false);
+  const [hasShownInitialIndicator, setHasShownInitialIndicator] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -26,6 +27,32 @@ const ChatPage: React.FC = () => {
     deleteSession, 
     updateSessionTitle 
   } = useChat();
+
+  // Auto-show usage indicator for 3 seconds on page load, then hide
+  useEffect(() => {
+    if (user && !hasShownInitialIndicator) {
+      setShowUsageIndicator(true);
+      setHasShownInitialIndicator(true);
+      
+      const timer = setTimeout(() => {
+        setShowUsageIndicator(false);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user, hasShownInitialIndicator]);
+
+  // Auto-show when usage is in red zone (80% or more)
+  useEffect(() => {
+    if (user) {
+      const usagePercentage = (user.messagesUsed / user.messagesLimit) * 100;
+      const isInRedZone = usagePercentage >= 80;
+      
+      if (isInRedZone && !showUsageIndicator) {
+        setShowUsageIndicator(true);
+      }
+    }
+  }, [user?.messagesUsed, user?.messagesLimit, showUsageIndicator]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -339,7 +366,7 @@ const ChatPage: React.FC = () => {
         </div>
 
         {/* Usage Indicator */}
-        {showUsageIndicator && (
+        {showUsageIndicator && user && (
           <div className="bg-white border-b border-gray-200 px-4 py-3">
             <div className="flex items-center justify-between text-sm mb-2">
               <span className="text-gray-600 font-medium">
@@ -375,7 +402,7 @@ const ChatPage: React.FC = () => {
                 </Link>
               </div>
             )}
-            </div>
+          </div>
         )}
 
         {/* Messages Container */}

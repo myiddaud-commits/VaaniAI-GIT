@@ -95,12 +95,13 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose }) => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-medium text-blue-900 mb-2">🔑 OpenRouter API Key</h3>
             <p className="text-sm text-blue-800 mb-2">
-              तेज़ चैट के लिए अपनी OpenRouter API key दर्ज करें:
+              तेज़ चैट और इमेज एनालिसिस के लिए अपनी OpenRouter API key दर्ज करें:
             </p>
             <ol className="text-sm text-blue-700 space-y-1">
               <li>1. <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="underline">OpenRouter.ai</a> पर जाएं</li>
               <li>2. साइन अप करें और API key बनाएं</li>
               <li>3. यहाँ API key पेस्ट करें</li>
+              <li>4. Sonoma Dusk Alpha मॉडल इमेज और टेक्स्ट दोनों को सपोर्ट करता है</li>
             </ol>
           </div>
 
@@ -121,19 +122,22 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose }) => {
           {/* Model Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              AI Model
+              AI Model (Vision + Text)
             </label>
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:border-transparent"
             >
-              <option value="openrouter/sonoma-dusk-alpha">Sonoma Dusk Alpha (Fast)</option>
-              <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
+              <option value="openrouter/sonoma-dusk-alpha">Sonoma Dusk Alpha (Fast + Vision)</option>
+              <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo (Text Only)</option>
               <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
               <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
               <option value="google/gemini-flash-1.5">Gemini Flash 1.5</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1">
+              💡 Sonoma Dusk Alpha सबसे तेज़ है और इमेज एनालिसिस भी करता है
+            </p>
           </div>
 
           {/* Message */}

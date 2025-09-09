@@ -455,13 +455,13 @@ const ChatPage: React.FC = () => {
               )}
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-700 mb-2">
-                  🔑 <strong>तेज़ चैट के लिए:</strong> साइडबार में "API सेटिंग्स" से अपनी OpenRouter API key सेट करें।
+                  🔑 <strong>तेज़ चैट और इमेज एनालिसिस के लिए:</strong> साइडबार में "API सेटिंग्स" से अपनी OpenRouter API key सेट करें।
                 </p>
                 <button
                   onClick={() => setShowApiConfig(true)}
                   className="text-sm bg-yellow-200 hover:bg-yellow-300 text-yellow-800 px-3 py-1 rounded-md transition-colors"
                 >
-                  API सेटअप करें
+                  API सेटअप करें (Vision Support)
                 </button>
               </div>
             </div>

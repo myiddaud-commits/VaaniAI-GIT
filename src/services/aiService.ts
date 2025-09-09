@@ -219,8 +219,8 @@ Examples:
 - "यह एक बिल्ली की तस्वीर है जो सो रही है। बहुत प्यारी लग रही है! 😺"
 - "इस इमेज में कुछ टेक्स्ट लिखा है जो कहता है..."`;
 
-      // Use a vision-capable model for image analysis
-      const visionModel = 'openai/gpt-4o-mini'; // This model supports vision
+      // Use Sonoma Dusk Alpha for image analysis (vision-capable and fast)
+      const visionModel = this.selectedModel; // Use the configured model (default: sonoma-dusk-alpha)
       
       const messages = [
         {

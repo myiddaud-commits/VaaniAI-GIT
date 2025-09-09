@@ -25,15 +25,11 @@ export interface ChatSession {
 
 export interface AuthContextType {
   user: User | null;
-  isGuest: boolean;
-  guestMessagesUsed: number;
-  guestMessageLimit: number;
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updatePlan: (plan: 'free' | 'premium' | 'enterprise') => void;
   incrementMessageCount: () => boolean;
-  enableGuestMode: () => void;
 }
 
 export interface ChatContextType {

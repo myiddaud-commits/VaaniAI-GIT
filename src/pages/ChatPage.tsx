@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, User, Bot, AlertCircle, Plus, MessageSquare, Edit2, X, Menu, ChevronLeft, MoreVertical, Eye, EyeOff, Image, Paperclip } from 'lucide-react';
+import { Send, Trash2, User, Bot, AlertCircle, Plus, MessageSquare, Edit2, X, Menu, ChevronLeft, MoreVertical, Eye, EyeOff, Image, Paperclip, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { Link } from 'react-router-dom';
+import ApiConfigModal from '../components/ApiConfigModal';
 
 const ChatPage: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
@@ -13,6 +14,7 @@ const ChatPage: React.FC = () => {
   const [hasShownInitialIndicator, setHasShownInitialIndicator] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showApiConfig, setShowApiConfig] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,11 +60,7 @@ const ChatPage: React.FC = () => {
   }, [user?.messagesUsed, user?.messagesLimit, showUsageIndicator]);
 
   // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!user) {
-      window.location.href = '/login';
-    }
-  }, [user]);
+  // Note: Removed redirect to allow guest usage with local storage
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -129,10 +127,6 @@ const ChatPage: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!inputMessage.trim() && !selectedImage)) return;
-    if (!user) {
-      window.location.href = '/login';
-      return;
-    }
 
     const messageText = inputMessage.trim();
     const imageFile = selectedImage;
@@ -174,25 +168,9 @@ const ChatPage: React.FC = () => {
     });
   };
 
-  // Show loading or redirect if no user
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            चैट एक्सेस करने के लिए लॉगिन करें
-          </h2>
-          <a href="/login" className="text-whatsapp-primary hover:text-whatsapp-dark">
-            लॉगिन करें
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  const usagePercentage = (user.messagesUsed / user.messagesLimit) * 100;
-  const isNearLimit = usagePercentage >= 80;
-  const isAtLimit = user.messagesUsed >= user.messagesLimit;
+  const usagePercentage = user ? (user.messagesUsed / user.messagesLimit) * 100 : 0;
+  const isNearLimit = user ? usagePercentage >= 80 : false;
+  const isAtLimit = user ? user.messagesUsed >= user.messagesLimit : false;
 
   return (
     <div className="flex h-screen bg-gray-50 relative overflow-hidden">
@@ -330,6 +308,13 @@ const ChatPage: React.FC = () => {
         </div>
 
         {/* Sidebar Footer */}
+          <button
+            onClick={() => setShowApiConfig(true)}
+            className="w-full text-left text-sm text-gray-600 hover:text-whatsapp-primary transition-colors py-2 px-3 rounded-lg hover:bg-whatsapp-light flex items-center"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            ⚙️ API सेटिंग्स
+          </button>
         <div className="p-4 border-t border-gray-200 bg-gray-50">
           <button
             onClick={() => {
@@ -391,6 +376,7 @@ const ChatPage: React.FC = () => {
               </button>
               
               {/* Toggle Usage Indicator */}
+              {user && (
               <button
                 onClick={() => setShowUsageIndicator(!showUsageIndicator)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -402,6 +388,7 @@ const ChatPage: React.FC = () => {
                   <EyeOff className="h-5 w-5 text-gray-600" />
                 )}
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -459,6 +446,24 @@ const ChatPage: React.FC = () => {
               <p className="text-gray-600 max-w-md mx-auto leading-relaxed">
                 मुझसे हिंदी में कुछ भी पूछें। मैं आपकी सहायता करने के लिए यहाँ हूँ।
               </p>
+              {!user && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    💡 आप बिना लॉगिन के भी चैट कर सकते हैं! डेटा आपके ब्राउज़र में सुरक्षित रहेगा।
+                  </p>
+                </div>
+              )}
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-700 mb-2">
+                  🔑 <strong>तेज़ चैट के लिए:</strong> साइडबार में "API सेटिंग्स" से अपनी OpenRouter API key सेट करें।
+                </p>
+                <button
+                  onClick={() => setShowApiConfig(true)}
+                  className="text-sm bg-yellow-200 hover:bg-yellow-300 text-yellow-800 px-3 py-1 rounded-md transition-colors"
+                >
+                  API सेटअप करें
+                </button>
+              </div>
             </div>
           )}
 
@@ -623,6 +628,12 @@ const ChatPage: React.FC = () => {
       
       {/* Mobile spacing for sticky input */}
       <div className="h-20 md:hidden"></div>
+
+      {/* API Config Modal */}
+      <ApiConfigModal 
+        isOpen={showApiConfig} 
+        onClose={() => setShowApiConfig(false)} 
+      />
     </div>
   );
 };

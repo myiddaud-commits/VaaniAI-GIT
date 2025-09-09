@@ -9,48 +9,15 @@ class AIService {
   private apiKey: string = '';
   private selectedModel: string = 'openrouter/sonoma-dusk-alpha';
   private baseUrl: string = 'https://openrouter.ai/api/v1';
-  private useLocalStorage: boolean = false;
+  private useLocalStorage: boolean = true;
 
   constructor() {
     this.loadApiConfig();
   }
 
   private async loadApiConfig() {
-    try {
-      // Check if we should use localStorage (for local development)
-      const useLocal = localStorage.getItem('vaaniai-use-local-api') === 'true';
-      
-      if (useLocal) {
-        this.useLocalStorage = true;
-        this.loadFromLocalStorage();
-      } else {
-        // Try to load from Supabase first
-        const { data, error } = await supabase
-          .from('api_configs')
-          .select('*')
-          .order('updated_at', { ascending: false })
-          .limit(1);
-
-        if (!error && data && data.length > 0) {
-          const config = data[0];
-          this.apiKey = config.openrouter_key || '';
-          this.selectedModel = config.selected_model || 'openrouter/sonoma-dusk-alpha';
-          console.log('Loaded API config from Supabase:', { 
-            hasApiKey: !!this.apiKey, 
-            model: this.selectedModel 
-          });
-        } else {
-          console.log('No API config found in Supabase, falling back to localStorage');
-          this.useLocalStorage = true;
-          this.loadFromLocalStorage();
-        }
-      }
-    } catch (error) {
-      console.error('Error loading API config from Supabase:', error instanceof Error ? error.message : error);
-      console.log('Falling back to localStorage due to error');
-      this.useLocalStorage = true;
-      this.loadFromLocalStorage();
-    }
+    // Always use localStorage for fast local API access
+    this.loadFromLocalStorage();
   }
 
   private loadFromLocalStorage() {
@@ -65,7 +32,7 @@ class AIService {
           model: this.selectedModel 
         });
       } else {
-        console.log('No API config found in localStorage');
+        console.log('No API config found in localStorage - using default demo key');
         this.apiKey = '';
         this.selectedModel = 'openrouter/sonoma-dusk-alpha';
       }
@@ -93,37 +60,28 @@ class AIService {
   // Method to update API key dynamically
   public updateApiKey(newApiKey: string) {
     this.apiKey = newApiKey;
+    this.saveToLocalStorage();
   }
 
   // Method to update selected model
   public updateSelectedModel(newModel: string) {
     this.selectedModel = newModel;
+    this.saveToLocalStorage();
   }
 
-  // Method to get current API configuration from Supabase
-  public async getApiConfig() {
-    try {
-      const { data, error } = await supabase
-        .from('api_configs')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error getting API config:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Error getting API config:', error);
-      return null;
-    }
+  // Method to get current API configuration from localStorage
+  public getApiConfig() {
+    return {
+      openrouter_key: this.apiKey,
+      selected_model: this.selectedModel,
+      max_tokens: 500,
+      temperature: 0.7
+    };
   }
 
   async generateResponse(message: string, isGuest: boolean = false): Promise<AIResponse> {
-    // Reload API config before each request to ensure we have the latest settings
-    await this.loadApiConfig();
+    // Load API config from localStorage for fast access
+    this.loadFromLocalStorage();
     
     // Check if API key is available
     if (!this.apiKey) {
@@ -154,9 +112,9 @@ Examples:
 - User: "AI kya hai" → You: "AI यानी आर्टिफिशियल इंटेलिजेंस एक तकनीक है जो मशीनों को इंसानों की तरह सोचने में मदद करती है। 🤖"`;
 
       // Get current API configuration for request parameters
-      const apiConfig = await this.getApiConfig();
-      const maxTokens = apiConfig?.max_tokens || 500;
-      const temperature = apiConfig?.temperature || 0.7;
+      const apiConfig = this.getApiConfig();
+      const maxTokens = apiConfig.max_tokens || 500;
+      const temperature = apiConfig.temperature || 0.7;
 
       console.log('Making API request with:', {
         model: this.selectedModel,
@@ -231,8 +189,8 @@ Examples:
 
   // New method for image analysis
   async analyzeImage(imageBase64: string, userMessage: string = ''): Promise<AIResponse> {
-    // Reload API config before each request
-    await this.loadApiConfig();
+    // Load API config from localStorage for fast access
+    this.loadFromLocalStorage();
     
     // Check if API key is available
     if (!this.apiKey) {

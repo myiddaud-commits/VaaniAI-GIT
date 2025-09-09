@@ -229,6 +229,107 @@ Examples:
     }
   }
 
+  // New method for image analysis
+  async analyzeImage(imageBase64: string, userMessage: string = ''): Promise<AIResponse> {
+    // Reload API config before each request
+    await this.loadApiConfig();
+    
+    // Check if API key is available
+    if (!this.apiKey) {
+      console.error('No OpenRouter API key configured');
+      return {
+        message: "🔑 API कॉन्फ़िगरेशन की समस्या है। कृपया एडमिन से संपर्क करें। 🛠️",
+        error: 'No API key configured'
+      };
+    }
+    
+    try {
+      const systemPrompt = `You are VaaniAI, a helpful AI assistant that can analyze images and respond in Hindi (Devanagari script). When analyzing images, provide detailed descriptions in Hindi.
+
+CRITICAL RULES for Image Analysis:
+1. ALWAYS respond in Hindi (Devanagari script)
+2. Describe what you see in the image in detail
+3. If user asks specific questions about the image, answer in Hindi
+4. Be descriptive and helpful
+5. Use appropriate emojis to enhance responses
+6. If you can identify objects, people, text, or scenes, mention them in Hindi
+7. If there's text in the image, try to read and translate it to Hindi if needed
+8. Be respectful and appropriate in descriptions
+
+Examples:
+- "इस तस्वीर में मुझे एक सुंदर बगीचा दिख रहा है जिसमें रंग-बिरंगे फूल हैं। 🌸"
+- "यह एक बिल्ली की तस्वीर है जो सो रही है। बहुत प्यारी लग रही है! 😺"
+- "इस इमेज में कुछ टेक्स्ट लिखा है जो कहता है..."`;
+
+      // Use a vision-capable model for image analysis
+      const visionModel = 'openai/gpt-4o-mini'; // This model supports vision
+      
+      const messages = [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: userMessage || 'इस इमेज में क्या है? कृपया विस्तार से बताएं।'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/jpeg;base64,${imageBase64}`
+              }
+            }
+          ]
+        }
+      ];
+
+      console.log('Making vision API request with model:', visionModel);
+
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'VaaniAI Hindi Chatbot - Image Analysis'
+        },
+        body: JSON.stringify({
+          model: visionModel,
+          messages: messages,
+          max_tokens: 800,
+          temperature: 0.7,
+          top_p: 0.9
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Vision API request failed:', response.status, errorText);
+        throw new Error(`Vision API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        return {
+          message: data.choices[0].message.content.trim()
+        };
+      } else {
+        throw new Error('Invalid response format from Vision API');
+      }
+    } catch (error) {
+      console.error('Image Analysis Error:', error);
+      
+      return {
+        message: "🖼️ क्षमा करें, इमेज का विश्लेषण करने में समस्या हुई। कृपया पुनः प्रयास करें। 🔄",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   // Method to test API connectivity
   async testConnection(): Promise<boolean> {
     try {

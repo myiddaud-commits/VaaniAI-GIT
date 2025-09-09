@@ -37,7 +37,7 @@ export interface ChatContextType {
   isTyping: boolean;
   sessions: ChatSession[];
   currentSessionId: string | null;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, imageFile?: File) => Promise<void>;
   clearChat: () => void;
   clearAllSessions: () => void;
   createNewSession: () => void;

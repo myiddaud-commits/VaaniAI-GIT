@@ -182,7 +182,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
 
   // Send message
-  const sendMessage = async (text: string): Promise<void> => {
+  const sendMessage = async (text: string, imageFile?: File): Promise<void> => {
     if (!user || !currentSessionId) {
       return;
     }
@@ -199,14 +199,49 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       return;
     }
 
+    let messageContent = text;
+    let imageBase64 = '';
+    
+    // Handle image if provided
+    if (imageFile) {
+      try {
+        // Convert image to base64
+        const reader = new FileReader();
+        imageBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Remove data URL prefix to get just base64
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+        
+        // Update message content to indicate image was sent
+        messageContent = text ? 
+          `${text}\n\n[📷 इमेज भेजी गई: ${imageFile.name}]` : 
+          `[📷 इमेज भेजी गई: ${imageFile.name}]`;
+      } catch (error) {
+        console.error('Error processing image:', error);
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          text: "❌ इमेज प्रोसेसिंग में त्रुटि हुई। कृपया पुनः प्रयास करें।",
+          sender: 'bot',
+          timestamp: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        return;
+      }
+    }
+
     // Add user message to UI immediately
     const tempUserMessage: Message = {
       id: `temp-${Date.now()}`,
-      text,
+      text: messageContent,
       sender: 'user',
       timestamp: new Date().toISOString(),
     };
-
     setMessages(prev => [...prev, tempUserMessage]);
 
     try {
@@ -216,7 +251,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         .insert({
           session_id: currentSessionId,
           user_id: user.id,
-          content: text,
+          content: messageContent,
           sender: 'user'
         })
         .select()
@@ -238,15 +273,17 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       if (messages.length === 0) {
         const currentSession = sessions.find(s => s.id === currentSessionId);
         if (currentSession && currentSession.title === 'नई चैट') {
-          const title = text.length > 30 ? text.substring(0, 30) + '...' : text;
+          const title = (text || 'इमेज चैट').length > 30 ? (text || 'इमेज चैट').substring(0, 30) + '...' : (text || 'इमेज चैट');
           await updateSessionTitle(currentSessionId, title);
         }
       }
 
       setIsTyping(true);
 
-      // Get AI response
-      const aiResponse = await aiService.generateResponse(text, false);
+      // Get AI response - use image analysis if image is present
+      const aiResponse = imageBase64 ? 
+        await aiService.analyzeImage(imageBase64, text) :
+        await aiService.generateResponse(text, false);
       
       // Add bot message to UI
       const tempBotMessage: Message = {
@@ -283,9 +320,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         .from('api_usage_logs')
         .insert({
           user_id: user.id,
-          endpoint: 'chat/completions',
-          model_used: 'openrouter/sonoma-dusk-alpha',
-          tokens_used: Math.ceil(text.length / 4),
+          endpoint: imageBase64 ? 'vision/analyze' : 'chat/completions',
+          model_used: imageBase64 ? 'openai/gpt-4o-mini' : 'openrouter/sonoma-dusk-alpha',
+          tokens_used: Math.ceil((text || messageContent).length / 4),
           response_time: 1000,
           status: aiResponse.error ? 'error' : 'success',
           error_message: aiResponse.error || null

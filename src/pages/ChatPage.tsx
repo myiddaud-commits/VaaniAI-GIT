@@ -135,19 +135,14 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    let messageContent = inputMessage.trim();
-    
-    // If there's an image, add it to the message
-    if (selectedImage && imagePreview) {
-      messageContent = `${messageContent}\n\n[📷 इमेज भेजी गई: ${selectedImage.name}]`.trim();
-    }
+    const messageText = inputMessage.trim();
+    const imageFile = selectedImage;
 
     setInputMessage('');
     removeSelectedImage();
     
-    if (messageContent) {
-      await sendMessage(messageContent);
-    }
+    // Send message with optional image
+    await sendMessage(messageText, imageFile);
     
     // Close sidebar on mobile after sending message
     if (window.innerWidth < 768) {

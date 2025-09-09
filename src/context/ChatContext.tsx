@@ -200,7 +200,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
 
     let messageContent = text;
-    let imageUrl = '';
+    let imageUrl = imageFile ? '' : undefined;
     let imageBase64 = '';
     
     // Handle image if provided
@@ -211,8 +211,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         const base64Promise = new Promise<string>((resolve, reject) => {
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
         });
-        reader.readAsDataURL(imageFile);
         
         imageUrl = await base64Promise;
         imageBase64 = imageUrl.split(',')[1];
@@ -235,10 +235,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Add user message to UI immediately
     const tempUserMessage: Message = {
       id: `temp-${Date.now()}`,
-      text: messageContent,
+      text: text || 'इमेज भेजी गई',
       sender: 'user',
       timestamp: new Date().toISOString(),
-      imageUrl: imageUrl,
+      imageUrl: imageUrl || undefined,
     };
     setMessages(prev => [...prev, tempUserMessage]);
 
@@ -249,9 +249,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         .insert({
           session_id: currentSessionId,
           user_id: user.id,
-          content: messageContent,
+          content: text || 'इमेज भेजी गई',
           sender: 'user',
-          image_url: imageUrl
+          image_url: imageUrl || null
         })
         .select()
         .single();
@@ -284,7 +284,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Get AI response - use image analysis if image is present
       const aiResponse = imageBase64 ? 
         await aiService.analyzeImage(imageBase64, text) :
-        await aiService.generateResponse(text, false);
+        await aiService.generateResponse(text || '', false);
       
       // Add bot message to UI
       const tempBotMessage: Message = {
@@ -323,7 +323,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           user_id: user.id,
           endpoint: imageBase64 ? 'vision/analyze' : 'chat/completions',
           model_used: imageBase64 ? 'openai/gpt-4o-mini' : 'openrouter/sonoma-dusk-alpha',
-          tokens_used: Math.ceil((text || messageContent).length / 4),
+          tokens_used: Math.ceil((text || 'image').length / 4),
           response_time: 1000,
           status: aiResponse.error ? 'error' : 'success',
           error_message: aiResponse.error || null

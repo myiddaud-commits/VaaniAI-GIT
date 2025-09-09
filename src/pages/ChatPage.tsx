@@ -13,8 +13,6 @@ const ChatPage: React.FC = () => {
   const [hasShownInitialIndicator, setHasShownInitialIndicator] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,50 +118,9 @@ const ChatPage: React.FC = () => {
       reader.readAsDataURL(file);
     }
   };
-
-  const simulateUpload = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      setIsUploading(true);
-      setUploadProgress(0);
-      
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        
-        // Simulate upload progress
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += Math.random() * 30;
-          if (progress >= 100) {
-            progress = 100;
-            setUploadProgress(100);
-            clearInterval(interval);
-            
-            setTimeout(() => {
-              setIsUploading(false);
-              setUploadProgress(0);
-              resolve(base64);
-            }, 500);
-          } else {
-            setUploadProgress(Math.round(progress));
-          }
-        }, 200);
-      };
-      
-      reader.onerror = () => {
-        setIsUploading(false);
-        setUploadProgress(0);
-        reject(new Error('फाइल पढ़ने में त्रुटि हुई'));
-      };
-      
-      reader.readAsDataURL(file);
-    });
-  };
   const removeSelectedImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
-    setUploadProgress(0);
-    setIsUploading(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -171,30 +128,20 @@ const ChatPage: React.FC = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputMessage.trim() && !selectedImage) || isUploading) return;
+    if ((!inputMessage.trim() && !selectedImage)) return;
     if (!user) {
       window.location.href = '/login';
       return;
     }
 
     const messageText = inputMessage.trim();
-    let imageFile = selectedImage;
-    let uploadedImageUrl = '';
-
-    // If there's an image, upload it first
-    if (imageFile) {
-      try {
-        uploadedImageUrl = await simulateUpload(imageFile);
-      } catch (error) {
-        alert('इमेज अपलोड करने में त्रुटि हुई। कृपया पुनः प्रयास करें।');
-        return;
-      }
-    }
+    const imageFile = selectedImage;
+    
     setInputMessage('');
     removeSelectedImage();
     
     // Send message with optional image
-    await sendMessage(messageText, imageFile, uploadedImageUrl);
+    await sendMessage(messageText, imageFile);
     
     // Close sidebar on mobile after sending message
     if (window.innerWidth < 768) {
@@ -620,36 +567,6 @@ const ChatPage: React.FC = () => {
           )}
           
           {/* Upload Progress */}
-          {isUploading && (
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <img 
-                    src={imagePreview || ''} 
-                    alt="Uploading" 
-                    className="w-16 h-16 object-cover rounded-lg border border-gray-300 opacity-50"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900">
-                    इमेज अपलोड हो रही है...
-                  </p>
-                  <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-blue-600 mt-1">
-                    {uploadProgress}% पूर्ण
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
           
           <form onSubmit={handleSendMessage} className="flex space-x-3">
             <div className="flex-1 relative">
@@ -659,7 +576,7 @@ const ChatPage: React.FC = () => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="यहाँ अपना संदेश टाइप करें..."
-                className="w-full border border-gray-300 rounded-full px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:border-transparent text-sm placeholder-gray-500 bg-gray-50 min-h-[44px] shadow-sm"
+                className="w-full border border-gray-300 rounded-full px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:border-transparent text-sm placeholder-gray-500 bg-gray-50 min-h-[44px] shadow-sm disabled:opacity-50"
                 disabled={isAtLimit}
               />
               
@@ -689,7 +606,11 @@ const ChatPage: React.FC = () => {
               disabled={(!inputMessage.trim() && !selectedImage) || isTyping || isAtLimit}
               className="bg-whatsapp-primary text-white p-3 rounded-full hover:bg-whatsapp-dark focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
-              <Send className="h-5 w-5" />
+              {isTyping ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
             </button>
           </form>
           {isAtLimit && (

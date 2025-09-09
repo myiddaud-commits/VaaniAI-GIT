@@ -182,7 +182,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
 
   // Send message
-  const sendMessage = async (text: string, imageFile?: File, imageUrl?: string): Promise<void> => {
+  const sendMessage = async (text: string, imageFile?: File): Promise<void> => {
     if (!user || !currentSessionId) {
       return;
     }
@@ -200,12 +200,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
 
     let messageContent = text;
+    let imageUrl = '';
     let imageBase64 = '';
     
     // Handle image if provided
     if (imageFile) {
       try {
-        // Extract base64 from the uploaded image URL
+        // Convert image to base64
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+        });
+        reader.readAsDataURL(imageFile);
+        
+        imageUrl = await base64Promise;
         imageBase64 = imageUrl.split(',')[1];
         
         // Update message content to indicate image was sent
@@ -229,7 +238,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       text: messageContent,
       sender: 'user',
       timestamp: new Date().toISOString(),
-      imageUrl: imageUrl || undefined,
+      imageUrl: imageUrl,
     };
     setMessages(prev => [...prev, tempUserMessage]);
 
@@ -242,7 +251,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           user_id: user.id,
           content: messageContent,
           sender: 'user',
-          image_url: imageUrl || null
+          image_url: imageUrl
         })
         .select()
         .single();
@@ -255,7 +264,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Update the temporary message with real data
       setMessages(prev => prev.map(msg => 
         msg.id === tempUserMessage.id 
-          ? { ...msg, id: savedUserMessage.id, imageUrl: savedUserMessage.image_url }
+          ? { ...msg, id: savedUserMessage.id }
           : msg
       ));
 

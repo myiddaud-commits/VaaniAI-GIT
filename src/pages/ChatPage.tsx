@@ -686,24 +686,15 @@ const ChatPage: React.FC = () => {
             
             <button
               type="submit"
-              disabled={(!inputMessage.trim() && !selectedImage) || isTyping || isAtLimit || isUploading}
+              disabled={(!inputMessage.trim() && !selectedImage) || isTyping || isAtLimit}
               className="bg-whatsapp-primary text-white p-3 rounded-full hover:bg-whatsapp-dark focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
-              {isUploading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Send className="h-5 w-5" />
-              )}
+              <Send className="h-5 w-5" />
             </button>
           </form>
           {isAtLimit && (
             <p className="text-xs text-red-600 mt-2 text-center">
               संदेश या इमेज भेजने के लिए कृपया अपना प्लान अपग्रेड करें
-            </p>
-          )}
-          {isUploading && (
-            <p className="text-xs text-blue-600 mt-2 text-center">
-              कृपया इमेज अपलोड होने तक प्रतीक्षा करें...
             </p>
           )}
         </div>

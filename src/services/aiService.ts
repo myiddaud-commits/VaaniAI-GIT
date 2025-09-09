@@ -72,7 +72,7 @@ class AIService {
   // Method to get current API configuration from localStorage
   public getApiConfig() {
     return {
-      openrouter_key: this.apiKey,
+      openrouter_key: this.apiKey || '',
       selected_model: this.selectedModel,
       max_tokens: 500,
       temperature: 0.7

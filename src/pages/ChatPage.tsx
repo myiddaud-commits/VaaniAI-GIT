@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, User, Bot, AlertCircle, Plus, MessageSquare, Edit2, X, Menu, ChevronLeft } from 'lucide-react';
+import { Send, Trash2, User, Bot, AlertCircle, Plus, MessageSquare, Edit2, X, Menu, ChevronLeft, MoreVertical, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { Link } from 'react-router-dom';
@@ -9,6 +9,8 @@ const ChatPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [showUsageIndicator, setShowUsageIndicator] = useState(true);
+  const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -46,21 +48,28 @@ const ChatPage: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       const sidebar = document.getElementById('chat-sidebar');
       const menuButton = document.getElementById('menu-button');
+      const optionsDropdown = document.getElementById('options-dropdown');
+      const optionsButton = document.getElementById('options-button');
       
       if (isSidebarOpen && sidebar && !sidebar.contains(event.target as Node) && 
           menuButton && !menuButton.contains(event.target as Node)) {
         setIsSidebarOpen(false);
       }
+      
+      if (showOptionsDropdown && optionsDropdown && !optionsDropdown.contains(event.target as Node) &&
+          optionsButton && !optionsButton.contains(event.target as Node)) {
+        setShowOptionsDropdown(false);
+      }
     };
 
-    if (isSidebarOpen) {
+    if (isSidebarOpen || showOptionsDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSidebarOpen]);
+  }, [isSidebarOpen, showOptionsDropdown]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -308,57 +317,102 @@ const ChatPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => {
-                if (confirm('क्या आप वर्तमान चैट को साफ़ करना चाहते हैं?')) {
-                  clearChat();
-                }
-              }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              title="वर्तमान चैट साफ़ करें"
-            >
-              <Trash2 className="h-5 w-5 text-gray-600" />
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  if (confirm('क्या आप वर्तमान चैट को साफ़ करना चाहते हैं?')) {
+                    clearChat();
+                  }
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="वर्तमान चैट साफ़ करें"
+              >
+                <Trash2 className="h-5 w-5 text-gray-600" />
+              </button>
+              
+              {/* Options Dropdown */}
+              <div className="relative">
+                <button
+                  id="options-button"
+                  onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="विकल्प"
+                >
+                  <MoreVertical className="h-5 w-5 text-gray-600" />
+                </button>
+                
+                {showOptionsDropdown && (
+                  <div 
+                    id="options-dropdown"
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                  >
+                    <button
+                      onClick={() => {
+                        setShowUsageIndicator(!showUsageIndicator);
+                        setShowOptionsDropdown(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                    >
+                      <span className="flex items-center">
+                        {showUsageIndicator ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                        उपयोग संकेतक दिखाएं
+                      </span>
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                        showUsageIndicator ? 'bg-whatsapp-primary border-whatsapp-primary' : 'border-gray-300'
+                      }`}>
+                        {showUsageIndicator && (
+                          <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Usage Indicator */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-gray-600 font-medium">
-              संदेश: {user.messagesUsed}/{user.messagesLimit}
-            </span>
-            <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600 capitalize">
-              {user.plan} प्लान
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className={`h-2 rounded-full transition-all duration-300 ${
-                isAtLimit
-                  ? 'bg-red-500'
-                  : isNearLimit
-                  ? 'bg-yellow-500'
-                  : 'bg-whatsapp-primary'
-              }`}
-              style={{ width: `${Math.min(usagePercentage, 100)}%` }}
-            />
-          </div>
-          {(isNearLimit || isAtLimit) && (
-            <div className={`mt-2 flex items-center text-sm ${isAtLimit ? 'text-red-600' : 'text-yellow-600'}`}>
-              <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="flex-1">
-                {isAtLimit ? 'मासिक सीमा समाप्त हो गई है।' : 'आपकी मासिक सीमा समाप्त होने वाली है।'}
+        {showUsageIndicator && (
+          <div className="bg-white border-b border-gray-200 px-4 py-3">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-gray-600 font-medium">
+                संदेश: {user.messagesUsed}/{user.messagesLimit}
               </span>
-              <Link 
-                to="/plans" 
-                className="ml-2 text-whatsapp-primary hover:text-whatsapp-dark font-medium underline"
-              >
-                अपग्रेड करें
-              </Link>
+              <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600 capitalize">
+                {user.plan} प्लान
+              </span>
             </div>
-          )}
-        </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  isAtLimit
+                    ? 'bg-red-500'
+                    : isNearLimit
+                    ? 'bg-yellow-500'
+                    : 'bg-whatsapp-primary'
+                }`}
+                style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+              />
+            </div>
+            {(isNearLimit || isAtLimit) && (
+              <div className={`mt-2 flex items-center text-sm ${isAtLimit ? 'text-red-600' : 'text-yellow-600'}`}>
+                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="flex-1">
+                  {isAtLimit ? 'मासिक सीमा समाप्त हो गई है।' : 'आपकी मासिक सीमा समाप्त होने वाली है।'}
+                </span>
+                <Link 
+                  to="/plans" 
+                  className="ml-2 text-whatsapp-primary hover:text-whatsapp-dark font-medium underline"
+                >
+                  अपग्रेड करें
+                </Link>
+              </div>
+            )}
+            </div>
+        )}
 
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 pb-20 md:pb-24">

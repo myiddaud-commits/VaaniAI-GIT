@@ -16,7 +16,7 @@
 @layer components {
   /* Safe area support for mobile devices */
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), 16px);
   }
   
   .pt-safe {
@@ -76,6 +76,11 @@
   @media (max-width: 768px) {
     .chat-bubble {
       @apply max-w-[280px] px-3 py-2.5;
+    }
+    
+    /* Ensure sticky input doesn't overlap with content */
+    body {
+      padding-bottom: env(safe-area-inset-bottom);
     }
   }
 

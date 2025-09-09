@@ -277,7 +277,7 @@ const ChatPage: React.FC = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Chat Header */}
         <div className="bg-white border-b border-gray-200 p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -361,7 +361,7 @@ const ChatPage: React.FC = () => {
         </div>
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 pb-safe">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 pb-20 md:pb-24">
           {messages.length === 0 && (
             <div className="text-center text-gray-500 mt-8 px-4">
               <div className="w-20 h-20 bg-gradient-to-br from-whatsapp-primary to-whatsapp-dark rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
@@ -430,7 +430,7 @@ const ChatPage: React.FC = () => {
         </div>
 
         {/* Message Input */}
-        <div className="bg-white border-t border-gray-200 p-4 pb-safe">
+        <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto bg-white border-t border-gray-200 p-4 pb-safe z-10 md:z-auto">
           <form onSubmit={handleSendMessage} className="flex space-x-3">
             <input
               ref={inputRef}
@@ -438,13 +438,13 @@ const ChatPage: React.FC = () => {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="यहाँ अपना संदेश टाइप करें..."
-              className="flex-1 border border-gray-300 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:border-transparent text-sm placeholder-gray-500 bg-gray-50 min-h-[44px]"
+              className="flex-1 border border-gray-300 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:border-transparent text-sm placeholder-gray-500 bg-gray-50 min-h-[44px] shadow-sm"
               disabled={isAtLimit}
             />
             <button
               type="submit"
               disabled={!inputMessage.trim() || isTyping || isAtLimit}
-              className="bg-whatsapp-primary text-white p-3 rounded-full hover:bg-whatsapp-dark focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="bg-whatsapp-primary text-white p-3 rounded-full hover:bg-whatsapp-dark focus:outline-none focus:ring-2 focus:ring-whatsapp-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <Send className="h-5 w-5" />
             </button>
@@ -456,6 +456,9 @@ const ChatPage: React.FC = () => {
           )}
         </div>
       </div>
+      
+      {/* Mobile spacing for sticky input */}
+      <div className="h-20 md:hidden"></div>
     </div>
   );
 };

@@ -10,7 +10,6 @@ const ChatPage: React.FC = () => {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [showUsageIndicator, setShowUsageIndicator] = useState(true);
-  const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -48,28 +47,21 @@ const ChatPage: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       const sidebar = document.getElementById('chat-sidebar');
       const menuButton = document.getElementById('menu-button');
-      const optionsDropdown = document.getElementById('options-dropdown');
-      const optionsButton = document.getElementById('options-button');
       
       if (isSidebarOpen && sidebar && !sidebar.contains(event.target as Node) && 
           menuButton && !menuButton.contains(event.target as Node)) {
         setIsSidebarOpen(false);
       }
-      
-      if (showOptionsDropdown && optionsDropdown && !optionsDropdown.contains(event.target as Node) &&
-          optionsButton && !optionsButton.contains(event.target as Node)) {
-        setShowOptionsDropdown(false);
-      }
     };
 
-    if (isSidebarOpen || showOptionsDropdown) {
+    if (isSidebarOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSidebarOpen, showOptionsDropdown]);
+  }, [isSidebarOpen]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,46 +322,18 @@ const ChatPage: React.FC = () => {
                 <Trash2 className="h-5 w-5 text-gray-600" />
               </button>
               
-              {/* Options Dropdown */}
-              <div className="relative">
-                <button
-                  id="options-button"
-                  onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  title="विकल्प"
-                >
-                  <MoreVertical className="h-5 w-5 text-gray-600" />
-                </button>
-                
-                {showOptionsDropdown && (
-                  <div 
-                    id="options-dropdown"
-                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
-                  >
-                    <button
-                      onClick={() => {
-                        setShowUsageIndicator(!showUsageIndicator);
-                        setShowOptionsDropdown(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-                    >
-                      <span className="flex items-center">
-                        {showUsageIndicator ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-                        उपयोग संकेतक दिखाएं
-                      </span>
-                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                        showUsageIndicator ? 'bg-whatsapp-primary border-whatsapp-primary' : 'border-gray-300'
-                      }`}>
-                        {showUsageIndicator && (
-                          <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </button>
-                  </div>
+              {/* Toggle Usage Indicator */}
+              <button
+                onClick={() => setShowUsageIndicator(!showUsageIndicator)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title={showUsageIndicator ? "उपयोग संकेतक छुपाएं" : "उपयोग संकेतक दिखाएं"}
+              >
+                {showUsageIndicator ? (
+                  <Eye className="h-5 w-5 text-gray-600" />
+                ) : (
+                  <EyeOff className="h-5 w-5 text-gray-600" />
                 )}
-              </div>
+              </button>
             </div>
           </div>
         </div>
